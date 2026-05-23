@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>🌸 Moje Kosmetika</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
 :root {
@@ -21,63 +20,47 @@ header h1{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:400;
 header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
 .header-btns{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
 .btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;border:none;cursor:pointer;transition:all 0.2s;}
-.btn-white{background:#fff;color:var(--rose-deep);}
-.btn-white:hover{background:var(--rose-light);}
-.btn-ghost{background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.35);}
-.btn-ghost:hover{background:rgba(255,255,255,0.28);}
+.btn-white{background:#fff;color:var(--rose-deep);}.btn-white:hover{background:var(--rose-light);}
+.btn-ghost{background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.35);}.btn-ghost:hover{background:rgba(255,255,255,0.28);}
 .stats{display:flex;background:var(--warm);border-bottom:1px solid var(--border);}
-.stat{flex:1;padding:10px 6px;text-align:center;border-right:1px solid var(--border);}
-.stat:last-child{border-right:none;}
+.stat{flex:1;padding:10px 6px;text-align:center;border-right:1px solid var(--border);}.stat:last-child{border-right:none;}
 .stat-num{font-family:'Cormorant Garamond',serif;font-size:20px;}
 .stat-label{font-size:9px;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:0.5px;}
 .s-urgent .stat-num{color:var(--urgent);}.s-warn .stat-num{color:var(--warn);}.s-ok .stat-num{color:var(--ok);}.s-stock .stat-num{color:var(--stock);}
 .top-bar{background:var(--warm);border-bottom:1px solid var(--border);}
-.filters{display:flex;gap:6px;padding:10px 14px;overflow-x:auto;}
-.filters::-webkit-scrollbar{display:none;}
+.filters{display:flex;gap:6px;padding:10px 14px;overflow-x:auto;}.filters::-webkit-scrollbar{display:none;}
 .f-btn{padding:5px 12px;border-radius:100px;border:1.5px solid var(--border);background:#fff;color:var(--muted);font-size:11px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:'DM Sans',sans-serif;transition:all 0.18s;}
 .f-btn.active{background:var(--rose);color:#fff;border-color:var(--rose);}
 .search-wrap{padding:0 14px 10px;}
 .search-input{width:100%;padding:9px 14px 9px 34px;border:1.5px solid var(--border);border-radius:100px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%238a6e71' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border 0.2s;}
 .search-input:focus{border-color:var(--rose);}
 .list{padding:10px 14px 100px;}
-.cat-label{font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:18px 0 6px 2px;}
-.cat-label:first-child{margin-top:4px;}
+.cat-label{font-family:'Cormorant Garamond',serif;font-size:12px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:18px 0 6px 2px;}.cat-label:first-child{margin-top:4px;}
 .item{background:#fff;border-radius:14px;border:1.5px solid var(--border);margin-bottom:8px;overflow:hidden;box-shadow:0 2px 8px var(--shadow);}
-.item.is-urgent{border-color:#e8b4b4;background:#fffafa;}
-.item.is-warn{border-color:#f0d08a;background:#fffdf5;}
-.item.is-stock{border-color:#b4c8e8;background:#f7faff;}
+.item.is-urgent{border-color:#e8b4b4;background:#fffafa;}.item.is-warn{border-color:#f0d08a;background:#fffdf5;}.item.is-stock{border-color:#b4c8e8;background:#f7faff;}
 .item-head{display:flex;align-items:center;gap:10px;padding:12px 12px 8px;}
 .item-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.ic-pece{background:#e8f0fb;}.ic-rty{background:#fce8ec;}.ic-oci{background:#e8f7ee;}
-.ic-kosmetika{background:#fce8ec;}.ic-telo{background:#f0e8fc;}.ic-vlasy{background:#fef7e0;}.ic-jidlo{background:#e8f7ee;}
+.ic-pece{background:#e8f0fb;}.ic-rty{background:#fce8ec;}.ic-oci{background:#e8f7ee;}.ic-kosmetika{background:#fce8ec;}.ic-telo{background:#f0e8fc;}.ic-vlasy{background:#fef7e0;}.ic-jidlo{background:#e8f7ee;}
 .item-info{flex:1;min-width:0;}
 .item-brand{font-size:9px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;}
 .item-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
 .item-sub{font-size:10px;color:var(--muted);margin-top:1px;}
 .item-badge{padding:3px 9px;border-radius:100px;font-size:10px;font-weight:500;flex-shrink:0;}
-.b-ok{background:var(--ok-bg);color:#3a7a4a;}.b-warn{background:var(--warn-bg);color:#8a6010;}
-.b-urgent{background:var(--urgent-bg);color:#a03030;}.b-stock{background:var(--stock-bg);color:#2a5aaa;}
+.b-ok{background:var(--ok-bg);color:#3a7a4a;}.b-warn{background:var(--warn-bg);color:#8a6010;}.b-urgent{background:var(--urgent-bg);color:#a03030;}.b-stock{background:var(--stock-bg);color:#2a5aaa;}
 .item-status{display:flex;align-items:center;gap:8px;padding:0 12px 8px;}
 .status-pill{padding:2px 8px;border-radius:100px;font-size:10px;font-weight:500;}
-.pill-open{background:var(--rose-light);color:var(--rose-deep);}
-.pill-stock{background:var(--stock-bg);color:var(--stock);}
-.pill-expired{background:var(--urgent-bg);color:var(--urgent);}
-.prog-wrap{padding:0 12px 8px;}
-.prog-bar{height:3px;border-radius:100px;background:var(--border);overflow:hidden;}
+.pill-open{background:var(--rose-light);color:var(--rose-deep);}.pill-stock{background:var(--stock-bg);color:var(--stock);}.pill-expired{background:var(--urgent-bg);color:var(--urgent);}
+.prog-wrap{padding:0 12px 8px;}.prog-bar{height:3px;border-radius:100px;background:var(--border);overflow:hidden;}
 .prog-fill{height:100%;border-radius:100px;transition:width 0.5s;}
 .pf-ok{background:var(--ok);}.pf-warn{background:var(--warn);}.pf-urgent{background:var(--urgent);}
 .item-dates{display:flex;border-top:1px solid var(--border);font-size:10px;}
-.date-block{flex:1;padding:7px 10px;border-right:1px solid var(--border);}
-.date-block:last-child{border-right:none;}
-.date-lbl{color:var(--muted);font-size:9px;margin-bottom:1px;}
-.date-val{font-weight:500;font-size:11px;}
+.date-block{flex:1;padding:7px 10px;border-right:1px solid var(--border);}.date-block:last-child{border-right:none;}
+.date-lbl{color:var(--muted);font-size:9px;margin-bottom:1px;}.date-val{font-weight:500;font-size:11px;}
 .item-actions{display:flex;border-top:1px solid var(--border);}
 .act-btn{flex:1;padding:8px 4px;text-align:center;font-size:10px;color:var(--muted);cursor:pointer;border:none;background:none;border-right:1px solid var(--border);font-family:'DM Sans',sans-serif;transition:background 0.15s;}
-.act-btn:last-child{border-right:none;}
-.act-btn:hover{background:var(--rose-light);color:var(--rose-deep);}
+.act-btn:last-child{border-right:none;}.act-btn:hover{background:var(--rose-light);color:var(--rose-deep);}
 .act-btn.del:hover{background:var(--urgent-bg);color:var(--urgent);}
-.act-btn.open-it{color:var(--ok);font-weight:500;}
-.act-btn.open-it:hover{background:var(--ok-bg);color:#2a6a3a;}
+.act-btn.open-it{color:var(--ok);font-weight:500;}.act-btn.open-it:hover{background:var(--ok-bg);color:#2a6a3a;}
 .overlay{display:none;position:fixed;inset:0;background:rgba(40,15,20,0.55);z-index:200;backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;}
 .overlay.open{display:flex;}
 .modal{background:var(--warm);border-radius:22px 22px 0 0;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;animation:slideUp 0.3s ease;}
@@ -88,8 +71,7 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
 .scan-result{background:var(--rose-light);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:none;}
 .scan-result.show{display:block;}
 .scan-result-title{font-size:11px;font-weight:500;color:var(--rose-deep);margin-bottom:4px;}
-.scan-result-name{font-size:13px;font-weight:500;}
-.scan-result-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.scan-result-name{font-size:13px;font-weight:500;}.scan-result-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 .form-group{margin-bottom:12px;}
 .form-label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:5px;display:block;}
 .form-input,.form-select{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:#fff;outline:none;transition:border 0.2s;-webkit-appearance:none;}
@@ -99,26 +81,30 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
 .status-opt{flex:1;padding:8px 6px;border-radius:10px;border:1.5px solid var(--border);text-align:center;font-size:11px;font-weight:500;cursor:pointer;transition:all 0.18s;background:#fff;font-family:'DM Sans',sans-serif;}
 .status-opt.sel-open{background:var(--rose-light);color:var(--rose-deep);border-color:var(--rose);}
 .status-opt.sel-stock{background:var(--stock-bg);color:var(--stock);border-color:var(--stock);}
-.btn-ean{width:100%;padding:10px;background:var(--rose-light);color:var(--rose-deep);border:1.5px dashed var(--rose);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:14px;transition:all 0.2s;}
-.btn-ean:hover{background:var(--rose);color:#fff;border-style:solid;}
+.btn-ean{width:100%;padding:12px;background:var(--rose);color:#fff;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;margin-bottom:14px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn-ean:hover{background:var(--rose-deep);}
 .btn-submit{width:100%;padding:13px;background:var(--rose);color:#fff;border:none;border-radius:100px;font-size:14px;font-weight:500;cursor:pointer;margin-top:6px;font-family:'DM Sans',sans-serif;transition:background 0.2s;}
 .btn-submit:hover{background:var(--rose-deep);}
-.scan-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:300;flex-direction:column;align-items:center;justify-content:center;}
+
+/* SCANNER - nový přístup přes input type=file */
+.scan-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:300;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
 .scan-overlay.open{display:flex;}
-#scan-container{width:88%;max-width:370px;border-radius:16px;overflow:hidden;position:relative;aspect-ratio:4/3;background:#111;}
-.scan-frame{position:absolute;inset:0;border:2px solid rgba(255,255,255,0.2);border-radius:16px;pointer-events:none;}
-.scan-line{position:absolute;left:8%;right:8%;height:2px;background:linear-gradient(90deg,transparent,var(--rose),transparent);animation:scan 2s linear infinite;}
-@keyframes scan{0%{top:10%;}100%{top:88%;}}
-.scan-status{color:rgba(255,255,255,0.7);font-size:13px;margin-top:18px;text-align:center;padding:0 20px;}
-.scan-loading{color:var(--rose);font-size:12px;margin-top:8px;display:none;}
-.scan-close{margin-top:20px;color:#fff;font-size:13px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);padding:10px 28px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.scan-box{width:100%;max-width:380px;position:relative;}
+#scan-video{width:100%;border-radius:16px;display:block;background:#111;}
+.scan-frame-overlay{position:absolute;inset:0;border-radius:16px;pointer-events:none;}
+.scan-frame-overlay::before{content:'';position:absolute;inset:15%;border:2px solid rgba(201,123,132,0.8);border-radius:8px;}
+.scan-line-anim{position:absolute;left:15%;right:15%;height:2px;background:linear-gradient(90deg,transparent,var(--rose),transparent);top:20%;animation:scanAnim 1.8s ease-in-out infinite;}
+@keyframes scanAnim{0%,100%{top:20%;}50%{top:78%;}}
+.scan-hint{color:rgba(255,255,255,0.8);font-size:14px;margin-top:20px;text-align:center;line-height:1.6;}
+.scan-hint strong{color:var(--rose);}
+.scan-close{margin-top:20px;color:#fff;font-size:13px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:12px 32px;border-radius:100px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.scan-loading{color:var(--rose);font-size:13px;margin-top:12px;display:none;}
+
 .fab{position:fixed;bottom:22px;right:18px;width:54px;height:54px;border-radius:50%;background:var(--rose);color:#fff;border:none;font-size:24px;cursor:pointer;z-index:150;box-shadow:0 4px 20px rgba(180,80,100,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.2s;}
 .fab:hover{transform:scale(1.08);}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:9px 18px;border-radius:100px;font-size:12px;z-index:400;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;}
-.empty{text-align:center;padding:50px 20px;}
-.empty-icon{font-size:44px;margin-bottom:10px;}
-.empty-txt{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--muted);}
+.empty{text-align:center;padding:50px 20px;}.empty-icon{font-size:44px;margin-bottom:10px;}.empty-txt{font-family:'Cormorant Garamond',serif;font-size:18px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -127,7 +113,7 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
   <p>Zásoby & data spotřeby</p>
   <div class="header-btns">
     <button class="btn btn-white" onclick="openModal()">＋ Přidat</button>
-    <button class="btn btn-ghost" onclick="startScan()">📷 Skenovat EAN</button>
+    <button class="btn btn-ghost" onclick="openScanOverlay()">📷 Skenovat EAN</button>
   </div>
 </header>
 <div class="stats" id="stats"></div>
@@ -150,12 +136,13 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
 <div class="list" id="list"></div>
 <button class="fab" onclick="openModal()">＋</button>
 
+<!-- MODAL -->
 <div class="overlay" id="modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-title">Přidat produkt</div>
     <div class="modal-body">
-      <button class="btn-ean" onclick="startScanInline()">📷 Naskenovat EAN kód</button>
+      <button class="btn-ean" onclick="openScanFromModal()">📷 Naskenovat EAN kód</button>
       <div class="scan-result" id="scan-result">
         <div class="scan-result-title">✓ Produkt nalezen</div>
         <div class="scan-result-name" id="sr-name"></div>
@@ -169,70 +156,35 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Značka</label>
-          <input class="form-input" id="f-brand" placeholder="Dior, MAC…">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Kategorie</label>
+        <div class="form-group"><label class="form-label">Značka</label><input class="form-input" id="f-brand" placeholder="Dior, MAC…"></div>
+        <div class="form-group"><label class="form-label">Kategorie</label>
           <select class="form-select" id="f-cat">
-            <option value="pece">🧴 Péče o pleť</option>
-            <option value="rty">👄 Rty</option>
-            <option value="oci">👁️ Oči</option>
-            <option value="kosmetika">💄 Make-up</option>
-            <option value="vlasy">💆 Vlasy</option>
-            <option value="telo">🛁 Tělo</option>
-            <option value="jidlo">🥗 Potraviny</option>
+            <option value="pece">🧴 Péče o pleť</option><option value="rty">👄 Rty</option>
+            <option value="oci">👁️ Oči</option><option value="kosmetika">💄 Make-up</option>
+            <option value="vlasy">💆 Vlasy</option><option value="telo">🛁 Tělo</option><option value="jidlo">🥗 Potraviny</option>
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Název produktu</label>
-        <input class="form-input" id="f-name" placeholder="název">
-      </div>
+      <div class="form-group"><label class="form-label">Název produktu</label><input class="form-input" id="f-name" placeholder="název"></div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Odstín / typ</label>
-          <input class="form-input" id="f-variant" placeholder="volitelné">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Šarže / EAN</label>
-          <input class="form-input" id="f-batch" placeholder="např. A35">
-        </div>
+        <div class="form-group"><label class="form-label">Odstín / typ</label><input class="form-input" id="f-variant" placeholder="volitelné"></div>
+        <div class="form-group"><label class="form-label">Šarže / EAN</label><input class="form-input" id="f-batch" placeholder="např. A35"></div>
       </div>
       <div id="open-fields">
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Datum otevření</label>
-            <input class="form-input" type="date" id="f-opened">
-          </div>
-          <div class="form-group">
-            <label class="form-label">PAO (měsíců)</label>
-            <input class="form-input" type="number" id="f-pao" placeholder="12" min="1" max="60">
-          </div>
+          <div class="form-group"><label class="form-label">Datum otevření</label><input class="form-input" type="date" id="f-opened"></div>
+          <div class="form-group"><label class="form-label">PAO (měsíců)</label><input class="form-input" type="number" id="f-pao" placeholder="12" min="1" max="60"></div>
         </div>
       </div>
       <div id="stock-fields" style="display:none">
         <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Datum výroby</label>
-            <input class="form-input" id="f-made" placeholder="např. 3/2025">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Trvanlivost (měs.)</label>
-            <input class="form-input" type="number" id="f-shelf" placeholder="24" min="1" max="60">
-          </div>
+          <div class="form-group"><label class="form-label">Datum výroby</label><input class="form-input" id="f-made" placeholder="např. 3/2025"></div>
+          <div class="form-group"><label class="form-label">Trvanlivost (měs.)</label><input class="form-input" type="number" id="f-shelf" placeholder="24" min="1" max="60"></div>
         </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Počet kusů</label>
-          <input class="form-input" type="number" id="f-qty" placeholder="1" min="1" max="99" value="1">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Poznámka</label>
-          <input class="form-input" id="f-note" placeholder="volitelné">
-        </div>
+        <div class="form-group"><label class="form-label">Počet kusů</label><input class="form-input" type="number" id="f-qty" placeholder="1" min="1" max="99" value="1"></div>
+        <div class="form-group"><label class="form-label">Poznámka</label><input class="form-input" id="f-note" placeholder="volitelné"></div>
       </div>
       <input type="hidden" id="f-id">
       <button class="btn-submit" onclick="saveProduct()">Uložit</button>
@@ -240,23 +192,29 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
   </div>
 </div>
 
+<!-- SCAN OVERLAY - živá kamera -->
 <div class="scan-overlay" id="scan-overlay">
-  <div id="scan-container">
-    <div id="scan-video-wrap" style="width:100%;height:100%;"></div>
-    <div class="scan-frame"></div>
-    <div class="scan-line"></div>
+  <div class="scan-box">
+    <video id="scan-video" autoplay playsinline muted></video>
+    <canvas id="scan-canvas" style="display:none"></canvas>
+    <div class="scan-frame-overlay">
+      <div class="scan-line-anim"></div>
+    </div>
   </div>
-  <div class="scan-status" id="scan-status">Namiřte na čárový kód produktu</div>
+  <div class="scan-hint">Namiřte čárový kód do <strong>červeného rámečku</strong><br>Držte telefon stabilně, kód bude automaticky přečten</div>
   <div class="scan-loading" id="scan-loading">⏳ Hledám produkt v databázi…</div>
   <button class="scan-close" onclick="stopScan()">Zavřít</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
+import { BrowserMultiFormatReader, NotFoundException } from 'https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/+esm';
+
 const CAT_ICON={pece:'🧴',rty:'👄',oci:'👁️',kosmetika:'💄',vlasy:'💆',telo:'🛁',jidlo:'🥗'};
 const CAT_NAME={pece:'Péče o pleť',rty:'Rty',oci:'Oči',kosmetika:'Make-up',vlasy:'Vlasy',telo:'Tělo',jidlo:'Potraviny'};
 const CAT_CLASS={pece:'ic-pece',rty:'ic-rty',oci:'ic-oci',kosmetika:'ic-kosmetika',vlasy:'ic-vlasy',telo:'ic-telo',jidlo:'ic-jidlo'};
+
 const DEFAULT=[
   {id:1,brand:'MAC',name:'Lustreglass Lipstick',variant:"540 Thanks It's MAC",cat:'rty',batch:'A35',made:'3/2025',status:'open',opened:'2026-05-22',pao:12,qty:1,note:''},
   {id:2,brand:'MAC',name:'Sleek Satin Mini Lipstick',variant:'819 Rebel',cat:'rty',batch:'A95',made:'9/2025',status:'open',opened:'2026-05-22',pao:18,qty:1,note:''},
@@ -269,10 +227,14 @@ const DEFAULT=[
   {id:9,brand:'La Roche-Posay',name:'Toleriane Foaming Gel',variant:'',cat:'pece',batch:'04A100',made:'—',status:'open',opened:'2026-05-17',pao:12,qty:1,note:''},
   {id:10,brand:'La Roche-Posay',name:'Lipikar Lait Urea 10%',variant:'',cat:'telo',batch:'54A100',made:'—',status:'open',opened:'2026-05-17',pao:12,qty:1,note:''},
 ];
+
 let products=JSON.parse(localStorage.getItem('kosmetika_v2')||'null')||DEFAULT;
 let nextId=Math.max(...products.map(p=>p.id),0)+1;
-let activeFilter='vse',editId=null,productStatus='open',scannerRunning=false,scanFromModal=false;
+let activeFilter='vse',editId=null,productStatus='open';
+let scanFromModal=false,codeReader=null,scanActive=false;
+
 function save(){localStorage.setItem('kosmetika_v2',JSON.stringify(products));}
+
 function expiryDate(p){
   if(p.status==='stock'){
     if(!p.made||p.made==='❓'||p.made==='—')return null;
@@ -296,8 +258,10 @@ function pct(p){
 }
 function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('cs-CZ',{day:'numeric',month:'numeric',year:'numeric'});}
 function fmtExpiry(p){const exp=expiryDate(p);if(!exp)return'—';return exp.toLocaleDateString('cs-CZ',{month:'numeric',year:'numeric'});}
-function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
-function render(){
+
+window.setFilter=function(f,btn){activeFilter=f;document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
+
+window.render=function(){
   const q=document.getElementById('search').value.toLowerCase();
   let filtered=products.filter(p=>{
     const match=!q||[p.brand,p.name,p.variant,p.batch].join(' ').toLowerCase().includes(q);if(!match)return false;
@@ -357,7 +321,8 @@ function render(){
   }
   el.innerHTML=html;
 }
-function openModal(id){
+
+window.openModal=function(id){
   editId=id||null;
   document.getElementById('modal-title').textContent=id?'Upravit produkt':'Přidat produkt';
   document.getElementById('scan-result').classList.remove('show');
@@ -377,15 +342,17 @@ function openModal(id){
   }
   document.getElementById('modal').classList.add('open');
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');}
-function selectStatus(s){
+window.closeModal=function(){document.getElementById('modal').classList.remove('open');}
+
+window.selectStatus=function(s){
   productStatus=s;
   document.getElementById('opt-open').className='status-opt'+(s==='open'?' sel-open':'');
   document.getElementById('opt-stock').className='status-opt'+(s==='stock'?' sel-stock':'');
   document.getElementById('open-fields').style.display=s==='open'?'':'none';
   document.getElementById('stock-fields').style.display=s==='stock'?'':'none';
 }
-function saveProduct(){
+
+window.saveProduct=function(){
   const brand=document.getElementById('f-brand').value.trim(),name=document.getElementById('f-name').value.trim();
   if(!brand||!name){toast('Vyplňte značku a název!');return;}
   const data={brand,name,variant:document.getElementById('f-variant').value.trim(),cat:document.getElementById('f-cat').value,
@@ -397,55 +364,36 @@ function saveProduct(){
   else{products.push({id:nextId++,...data});toast('Přidáno ✓');}
   save();closeModal();render();
 }
-function editProduct(id){openModal(id);}
-function delProduct(id){if(!confirm('Smazat?'))return;products=products.filter(p=>p.id!==id);save();render();toast('Smazáno');}
-function dupProduct(id){const p=products.find(x=>x.id===id);products.push({...p,id:nextId++,opened:new Date().toISOString().split('T')[0]});save();render();toast('Duplikováno ✓');}
-function markOpen(id){const p=products.find(x=>x.id===id);p.status='open';p.opened=new Date().toISOString().split('T')[0];save();render();toast('Označeno jako otevřené ✓');}
+window.editProduct=function(id){openModal(id);}
+window.delProduct=function(id){if(!confirm('Smazat?'))return;products=products.filter(p=>p.id!==id);save();render();toast('Smazáno');}
+window.dupProduct=function(id){const p=products.find(x=>x.id===id);products.push({...p,id:nextId++,opened:new Date().toISOString().split('T')[0]});save();render();toast('Duplikováno ✓');}
+window.markOpen=function(id){const p=products.find(x=>x.id===id);p.status='open';p.opened=new Date().toISOString().split('T')[0];save();render();toast('Označeno jako otevřené ✓');}
+
 async function lookupEAN(code){
   document.getElementById('scan-loading').style.display='block';
-  try{
-    const r=await fetch(`https://world.openbeautyfacts.org/api/v0/product/${code}.json`);
-    const d=await r.json();
-    if(d.status===1&&d.product){
-      const p=d.product;
-      document.getElementById('scan-loading').style.display='none';
-      return{name:p.product_name||p.product_name_cs||'',brand:p.brands||'',cat:'pece',found:true};
-    }
-  }catch(e){}
-  try{
-    const r=await fetch(`https://world.openfoodfacts.org/api/v0/product/${code}.json`);
-    const d=await r.json();
-    if(d.status===1&&d.product){
-      const p=d.product;
-      document.getElementById('scan-loading').style.display='none';
-      return{name:p.product_name||p.product_name_cs||'',brand:p.brands||'',cat:'jidlo',found:true};
-    }
-  }catch(e){}
+  for(const url of[
+    `https://world.openbeautyfacts.org/api/v0/product/${code}.json`,
+    `https://world.openfoodfacts.org/api/v0/product/${code}.json`
+  ]){
+    try{
+      const r=await fetch(url);const d=await r.json();
+      if(d.status===1&&d.product){
+        const p=d.product;
+        document.getElementById('scan-loading').style.display='none';
+        const isFood=url.includes('openfoodfacts');
+        return{name:p.product_name||p.product_name_cs||'',brand:p.brands||'',cat:isFood?'jidlo':'pece',found:true};
+      }
+    }catch(e){}
+  }
   document.getElementById('scan-loading').style.display='none';
   return{found:false};
 }
-function startScan(){scanFromModal=false;openScanner();}
-function startScanInline(){closeModal();scanFromModal=true;openScanner();}
-function openScanner(){
-  document.getElementById('scan-overlay').classList.add('open');
-  document.getElementById('scan-status').textContent='Namiřte na čárový kód produktu';
-  document.getElementById('scan-loading').style.display='none';
-  Quagga.init({
-    inputStream:{type:'LiveStream',target:document.getElementById('scan-video-wrap'),
-      constraints:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}},
-    decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader','upc_e_reader']},locate:true
-  },err=>{
-    if(err){document.getElementById('scan-status').textContent='❌ Kamera není dostupná';return;}
-    Quagga.start();scannerRunning=true;
-  });
-  let lastCode=null;
-  Quagga.onDetected(async result=>{
-    const code=result.codeResult.code;
-    if(code===lastCode)return;lastCode=code;
-    document.getElementById('scan-status').textContent=`✓ Kód: ${code}`;
-    const info=await lookupEAN(code);
-    stopScan();openModal();
-    document.getElementById('f-batch').value=code;
+
+function handleScannedCode(code){
+  stopScan();
+  openModal();
+  document.getElementById('f-batch').value=code;
+  lookupEAN(code).then(info=>{
     if(info.found&&info.name){
       document.getElementById('f-name').value=info.name;
       document.getElementById('f-brand').value=info.brand;
@@ -454,15 +402,70 @@ function openScanner(){
       document.getElementById('sr-sub').textContent=info.brand+(info.cat?' · '+(CAT_NAME[info.cat]||info.cat):'');
       document.getElementById('scan-result').classList.add('show');
       toast('✓ Produkt nalezen!');
-    }else{toast('Kód: '+code+' – vyplňte ručně');}
+    }else{
+      toast('Kód: '+code+' – vyplňte ručně');
+    }
   });
 }
-function stopScan(){
-  if(scannerRunning){Quagga.stop();scannerRunning=false;}
-  document.getElementById('scan-overlay').classList.remove('open');
-  document.getElementById('scan-video-wrap').innerHTML='';
+
+window.openScanOverlay=function(){scanFromModal=false;startScan();}
+window.openScanFromModal=function(){closeModal();scanFromModal=true;startScan();}
+
+async function startScan(){
+  document.getElementById('scan-overlay').classList.add('open');
+  scanActive=true;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}
+    });
+    const video=document.getElementById('scan-video');
+    video.srcObject=stream;
+    await video.play();
+
+    codeReader=new BrowserMultiFormatReader();
+    // Kontinuální čtení každých 300ms
+    const canvas=document.getElementById('scan-canvas');
+    const ctx=canvas.getContext('2d');
+    let lastCode=null,lastTime=0;
+
+    async function scanLoop(){
+      if(!scanActive)return;
+      const now=Date.now();
+      if(now-lastTime<300){requestAnimationFrame(scanLoop);return;}
+      lastTime=now;
+      if(video.readyState===video.HAVE_ENOUGH_DATA){
+        canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+        ctx.drawImage(video,0,0);
+        try{
+          const result=await codeReader.decodeFromCanvas(canvas);
+          if(result&&result.text&&result.text!==lastCode){
+            lastCode=result.text;
+            // Vibrace pro zpětnou vazbu
+            if(navigator.vibrate)navigator.vibrate(100);
+            handleScannedCode(result.text);
+            return;
+          }
+        }catch(e){}
+      }
+      requestAnimationFrame(scanLoop);
+    }
+    scanLoop();
+  }catch(e){
+    toast('Kamera není dostupná');
+    stopScan();
+  }
 }
+
+window.stopScan=function(){
+  scanActive=false;
+  const video=document.getElementById('scan-video');
+  if(video.srcObject){video.srcObject.getTracks().forEach(t=>t.stop());video.srcObject=null;}
+  document.getElementById('scan-overlay').classList.remove('open');
+  document.getElementById('scan-loading').style.display='none';
+}
+
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
 render();
 </script>
 </body>
