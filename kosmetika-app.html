@@ -140,7 +140,10 @@ header p{font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;}
       <div class="form-group"><label class="form-label">Název produktu</label><input class="form-input" id="f-name" placeholder="název"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Odstín / typ</label><input class="form-input" id="f-variant" placeholder="volitelné"></div>
-        <div class="form-group"><label class="form-label">Šarže / EAN</label><input class="form-input" id="f-batch" placeholder="např. A35"></div>
+        <div class="form-group"><label class="form-label">EAN (čárový kód)</label><input class="form-input" id="f-ean" placeholder="např. 3337875852302"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Šarže (batch kód)</label><input class="form-input" id="f-batch" placeholder="např. 5C01, A35"></div>
       </div>
 
       <!-- OTEVŘENO -->
@@ -288,7 +291,7 @@ function openModal(id){
     document.getElementById('f-name').value=p.name;
     document.getElementById('f-variant').value=p.variant||'';
     document.getElementById('f-cat').value=p.cat;
-    document.getElementById('f-batch').value=p.batch||'';
+    document.getElementById('f-ean').value=p.ean||'';document.getElementById('f-batch').value=p.batch||'';
     document.getElementById('f-opened').value=p.opened||'';
     document.getElementById('f-pao').value=p.pao||'';
     document.getElementById('f-made').value=p.made||'';
@@ -298,7 +301,7 @@ function openModal(id){
     document.getElementById('f-note').value=p.note||'';
     selectStatus(p.status||'open');
   }else{
-    ['f-brand','f-name','f-variant','f-batch','f-pao','f-made','f-expiry','f-pao-stock','f-note'].forEach(function(i){document.getElementById(i).value='';});
+    ['f-brand','f-name','f-variant','f-ean','f-batch','f-pao','f-made','f-expiry','f-pao-stock','f-note'].forEach(function(i){document.getElementById(i).value='';});
     document.getElementById('f-qty').value=1;
     document.getElementById('f-opened').value=new Date().toISOString().split('T')[0];
     document.getElementById('f-cat').value='pece';
@@ -318,7 +321,7 @@ function saveProduct(){
   var brand=document.getElementById('f-brand').value.trim(),name=document.getElementById('f-name').value.trim();
   if(!brand||!name){toast('Vyplňte značku a název!');return;}
   var data={brand:brand,name:name,variant:document.getElementById('f-variant').value.trim(),
-    cat:document.getElementById('f-cat').value,batch:document.getElementById('f-batch').value.trim(),
+    cat:document.getElementById('f-cat').value,ean:document.getElementById('f-ean').value.trim(),batch:document.getElementById('f-batch').value.trim(),
     status:productStatus,opened:document.getElementById('f-opened').value,
     pao:parseInt(document.getElementById('f-pao').value)||12,
     made:document.getElementById('f-made').value.trim(),
@@ -331,8 +334,8 @@ function saveProduct(){
     products[i]=Object.assign({},products[i],data);toast('Uloženo ✓');
   }else{products.push(Object.assign({id:nextId++},data));toast('Přidáno ✓');}
   // Uloz do EAN databaze pokud mame batch kod
-  if(data.batch&&data.batch.length>5&&data.name){
-    saveToEanDb(data.batch,data);
+  if(data.ean&&data.ean.length>5&&data.name){
+    saveToEanDb(data.ean,data);
   }
   save();closeModal();render();
 }
@@ -386,7 +389,7 @@ var eanFromUrl=urlParams.get('ean')||urlParams.get('code')||urlParams.get('barco
 if(eanFromUrl){
   setTimeout(function(){
     openModal();
-    document.getElementById('f-batch').value=eanFromUrl;
+    document.getElementById('f-ean').value=eanFromUrl;
     lookupEAN(eanFromUrl);
   },400);
 }
