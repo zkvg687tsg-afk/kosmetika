@@ -330,6 +330,10 @@ function saveProduct(){
     var i=products.findIndex(function(p){return p.id===editId;});
     products[i]=Object.assign({},products[i],data);toast('Uloženo ✓');
   }else{products.push(Object.assign({id:nextId++},data));toast('Přidáno ✓');}
+  // Uloz do EAN databaze pokud mame batch kod
+  if(data.batch&&data.batch.length>5&&data.name){
+    saveToEanDb(data.batch,data);
+  }
   save();closeModal();render();
 }
 function editProduct(id){openModal(id);}
@@ -338,27 +342,39 @@ function dupProduct(id){var p=products.find(function(x){return x.id===id;});prod
 function markOpen(id){var p=products.find(function(x){return x.id===id;});p.status='open';p.opened=new Date().toISOString().split('T')[0];if(p.paoStock)p.pao=p.paoStock;save();render();toast('Označeno jako otevřené ✓');}
 function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
 
-// EAN z URL (Apple Shortcuts)
+// VLASTNI EAN DATABAZE
+function getEanDb(){return JSON.parse(localStorage.getItem('kosmetika_ean')||'{}');}
+function saveEanDb(db){localStorage.setItem('kosmetika_ean',JSON.stringify(db));}
+function saveToEanDb(code,data){
+  var db=getEanDb();
+  db[code]={name:data.name,brand:data.brand,cat:data.cat,pao:data.pao};
+  saveEanDb(db);
+}
+function fillFormFromData(data,source){
+  if(data.name)document.getElementById('f-name').value=data.name;
+  if(data.brand)document.getElementById('f-brand').value=data.brand;
+  if(data.cat)document.getElementById('f-cat').value=data.cat;
+  if(data.pao)document.getElementById('f-pao').value=data.pao;
+  document.getElementById('sr-name').textContent=data.name||'';
+  document.getElementById('sr-sub').textContent=(data.brand||'')+(source?' · '+source:'');
+  document.getElementById('scan-result').classList.add('show');
+  toast('✓ '+(source||'Produkt nalezen!'));
+}
 function lookupEAN(code){
+  var db=getEanDb();
+  if(db[code]){fillFormFromData(db[code],'Z vlastní databáze ✓');return;}
   var urls=['https://world.openbeautyfacts.org/api/v0/product/'+code+'.json','https://world.openfoodfacts.org/api/v0/product/'+code+'.json'];
   var idx=0;
   function tryNext(){
-    if(idx>=urls.length)return;
+    if(idx>=urls.length){toast('Nenalezeno – vyplnte ručně');return;}
     fetch(urls[idx++]).then(function(r){return r.json();}).then(function(d){
       if(d.status===1&&d.product){
         var p=d.product;
         var isFood=urls[idx-1].indexOf('openfoodfacts')>=0;
         var name=p.product_name||p.product_name_cs||'';
         var brand=p.brands||'';
-        if(name){
-          document.getElementById('f-name').value=name;
-          document.getElementById('f-brand').value=brand;
-          document.getElementById('f-cat').value=isFood?'jidlo':'pece';
-          document.getElementById('sr-name').textContent=name;
-          document.getElementById('sr-sub').textContent=brand+(isFood?' · Potraviny':' · Péče o pleť');
-          document.getElementById('scan-result').classList.add('show');
-          toast('✓ Produkt nalezen!');
-        }else{tryNext();}
+        if(name){fillFormFromData({name:name,brand:brand,cat:isFood?'jidlo':'pece'},'Online databáze');}
+        else{tryNext();}
       }else{tryNext();}
     }).catch(function(){tryNext();});
   }
@@ -374,7 +390,6 @@ if(eanFromUrl){
     lookupEAN(eanFromUrl);
   },400);
 }
-
 render();
 </script>
 </body>
