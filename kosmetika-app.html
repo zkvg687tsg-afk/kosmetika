@@ -30,9 +30,35 @@ function computeExpiry(p){if(p.openedDate&&p.paoMonths>0)return addMonths(p.open
 function expiryColor(days){if(days===null)return null;if(days<0)return"#FF3B30";if(days<=60)return"#FF9500";return"#34C759";}
 function expiryText(days,exp){if(days===null||!exp)return null;const date=fmtDate(exp);if(days<0)return"Expirováno "+date;if(days===0)return"Expiruje dnes - "+date;if(days<=60)return date+" (za "+days+" dní)";return date;}
 
+// ── Konfigurace ──────────────────────────────────────────────────────────────
+// Worker URL — doplň po nasazení na Cloudflare:
+const WORKER_URL = "https://kosmetika.jh8pww9vgw.workers.dev";
+
 // ── localStorage ─────────────────────────────────────────────────────────────
 function loadKey(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):[];}catch{return[];}}
 function saveKey(key,data){try{localStorage.setItem(key,JSON.stringify(data));}catch{}}
+function getToken(){return localStorage.getItem("at-token")||"";}
+function setToken(t){localStorage.setItem("at-token",t);}
+
+// ── API přes Worker ───────────────────────────────────────────────────────────
+async function fetchFromAirtable(token){
+  const url=WORKER_URL||"";
+  if(!url) return {error:"no worker"};
+  try{
+    const r=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) return {error:r.status};
+    return await r.json();
+  }catch(e){return {error:e.message};}
+}
+
+async function pushToAirtable(token,products,archived,shopping){
+  const url=WORKER_URL||"";
+  if(!url) return;
+  try{
+    const body=JSON.stringify({products,archived,shopping,updatedAt:new Date().toISOString()});
+    await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body});
+  }catch{}
+}
 
 // ── Image resize ──────────────────────────────────────────────────────────────
 function resizeToBase64(file){return new Promise(function(resolve,reject){
@@ -242,8 +268,34 @@ function FormSheet({form,setForm,onSave,onClose,isEdit}){
           h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
 }
 
+// ── Setup obrazovka ──────────────────────────────────────────────────────────
+function SetupScreen({onSave}){
+  const [val,setVal]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+  const save=async()=>{
+    const t=val.trim();
+    if(!t){setErr("Zadej token.");return;}
+    setLoading(true);setErr("");
+    const data=await fetchFromAirtable(t);
+    if(data&&data.error){setErr("Token nefunguje ("+data.error+"). Zkontroluj ho a zkus znovu.");setLoading(false);return;}
+    setToken(t);
+    onSave(t,data);
+  };
+  return h("div",{style:{minHeight:"100vh",background:"#F2F2F7",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+    h("div",{style:{background:"#fff",borderRadius:"20px",padding:"32px 24px",width:"100%",maxWidth:"360px",textAlign:"center"}},
+      h("div",{style:{fontSize:"48px",marginBottom:"12px"}},"🔑"),
+      h("div",{style:{fontSize:"22px",fontWeight:700,marginBottom:"8px"}},"Propojit s Airtable"),
+      h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"24px",lineHeight:1.5}},"Zadej svůj Airtable Personal Access Token. Uloží se jen do tohoto zařízení."),
+      h("input",{type:"password",value:val,onChange:e=>setVal(e.target.value),placeholder:"pat...",style:{width:"100%",padding:"12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"15px",outline:"none",marginBottom:"8px",fontFamily:"monospace"}}),
+      err&&h("div",{style:{fontSize:"13px",color:"#FF3B30",marginBottom:"12px"}},"⚠ "+err),
+      h("button",{onClick:save,disabled:loading,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"12px",padding:"14px",fontSize:"16px",fontWeight:600}},loading?"Připojuji...":"Připojit"),
+      h("div",{style:{fontSize:"12px",color:"#C7C7CC",marginTop:"16px",lineHeight:1.5}},"Token najdeš na airtable.com/create/tokens")));
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
+  const [token,setTokenState]=useState(()=>getToken());
   const [products,setProducts]=useState(()=>loadKey("cos-v2-products"));
   const [archived,setArchived]=useState(()=>loadKey("cos-v2-archived"));
   const [shopping,setShopping]=useState(()=>loadKey("cos-v2-shopping"));
@@ -253,11 +305,55 @@ function App(){
   const [editId,setEditId]=useState(null);
   const [showForm,setShowForm]=useState(false);
   const [showSync,setShowSync]=useState(false);
-  const [showDel,setShowDel]=useState(null); // {id, archived}
+  const [showDel,setShowDel]=useState(null);
+  const [syncStatus,setSyncStatus]=useState(null);
 
-  const saveProds=list=>{setProducts(list);saveKey("cos-v2-products",list);};
-  const saveArch=list=>{setArchived(list);saveKey("cos-v2-archived",list);};
-  const saveShop=list=>{setShopping(list);saveKey("cos-v2-shopping",list);};
+  const handleSetup=(t,data)=>{
+    setTokenState(t);
+    if(data&&data.products){
+      setProducts(data.products);
+      setArchived(data.archived||[]);
+      setShopping(data.shopping||[]);
+      saveKey("cos-v2-products",data.products);
+      saveKey("cos-v2-archived",data.archived||[]);
+      saveKey("cos-v2-shopping",data.shopping||[]);
+    }
+    setSyncStatus("ok");
+  };
+
+  // Načtení dat z Airtable při startu
+  useEffect(()=>{
+    if(!token){setSyncStatus(null);return;}
+    setSyncStatus("syncing");
+    fetchFromAirtable(token).then(data=>{
+      if(data&&data.products){
+        setProducts(data.products);
+        setArchived(data.archived||[]);
+        setShopping(data.shopping||[]);
+        saveKey("cos-v2-products",data.products);
+        saveKey("cos-v2-archived",data.archived||[]);
+        saveKey("cos-v2-shopping",data.shopping||[]);
+        setSyncStatus("ok");
+      } else {
+        setSyncStatus("offline");
+      }
+    });
+  },[token]);
+
+  if(!token) return h(SetupScreen,{onSave:handleSetup});
+
+  const saveProds=list=>{
+    setProducts(list);saveKey("cos-v2-products",list);
+    pushToAirtable(token,list,archived,shopping);
+  };
+  const saveArch=list=>{
+    setArchived(list);saveKey("cos-v2-archived",list);
+    pushToAirtable(token,products,list,shopping);
+  };
+  const saveShop=list=>{
+    setShopping(list);saveKey("cos-v2-shopping",list);
+    pushToAirtable(token,products,archived,list);
+  };
   const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
   const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
   const handleSave=()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);saveProds([...products,{...form,id}]);}setShowForm(false);};
@@ -289,7 +385,11 @@ function App(){
   return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
     h("div",{style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
-        h("div",{style:{fontSize:"22px",fontWeight:700,letterSpacing:"-0.5px"}},"Kosmetika"),
+        h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
+          h("div",{style:{fontSize:"22px",fontWeight:700,letterSpacing:"-0.5px"}},"Kosmetika"),
+          syncStatus==="syncing"&&h("div",{style:{fontSize:"11px",color:"#8E8E93",padding:"2px 7px",background:"rgba(116,116,128,0.1)",borderRadius:"20px"}},"⏳ Načítám"),
+          syncStatus==="ok"&&h("div",{style:{fontSize:"11px",color:"#34C759",padding:"2px 7px",background:"rgba(52,199,89,0.1)",borderRadius:"20px"}},"✓ Synced"),
+          syncStatus==="offline"&&h("div",{style:{fontSize:"11px",color:"#FF9500",padding:"2px 7px",background:"rgba(255,149,0,0.1)",borderRadius:"20px"}},"⚠ Offline")),
         h("div",{style:{display:"flex",gap:"6px"}},
           h("button",{onClick:()=>setShowSync(true),style:hdrBtn},"Záloha"),
           h("button",{onClick:openAdd,style:{...hdrBtn,background:"#000",color:"#fff",fontWeight:600,padding:"6px 14px"}},"+ Přidat"))),
