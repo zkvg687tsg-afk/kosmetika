@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kosmetika">
+<title>Kosmetika</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#F2F2F7;color:#111}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+'use strict';
+const {useState,useEffect,createElement:h} = React;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function addMonths(dateStr,months){const d=new Date(dateStr);d.setMonth(d.getMonth()+parseInt(months));return d;}
+function daysLeft(date){const now=new Date();now.setHours(0,0,0,0);const t=new Date(date);t.setHours(0,0,0,0);return Math.round((t-now)/86400000);}
+function fmtDate(str){return str?new Date(str).toLocaleDateString("cs-CZ"):null;}
+function computeExpiry(p){if(p.openedDate&&p.paoMonths>0)return addMonths(p.openedDate,p.paoMonths);if(p.expiryDate)return new Date(p.expiryDate);return null;}
+function expiryColor(days){if(days===null)return null;if(days<0)return"#FF3B30";if(days<=60)return"#FF9500";return"#34C759";}
+function expiryText(days,exp){if(days===null||!exp)return null;const date=fmtDate(exp);if(days<0)return"Expirováno "+date;if(days===0)return"Expiruje dnes - "+date;if(days<=60)return date+" (za "+days+" dní)";return date;}
+
+// ── Konfigurace ──────────────────────────────────────────────────────────────
+// Worker URL — doplň po nasazení na Cloudflare:
+const WORKER_URL = "https://kosmetika.jh8pww9vgw.workers.dev";
+
+// ── localStorage ─────────────────────────────────────────────────────────────
+function loadKey(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):[];}catch{return[];}}
+function saveKey(key,data){try{localStorage.setItem(key,JSON.stringify(data));}catch{}}
+function getToken(){return localStorage.getItem("at-token")||"";}
+function setToken(t){localStorage.setItem("at-token",t);}
+
+// ── API přes Worker ───────────────────────────────────────────────────────────
+async function fetchFromAirtable(token){
+  const url=WORKER_URL||"";
+  if(!url) return {error:"no worker"};
+  try{
+    const r=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) return {error:r.status};
+    return await r.json();
+  }catch(e){return {error:e.message};}
+}
+
+async function pushToAirtable(token,products,archived,shopping){
+  const url=WORKER_URL||"";
+  if(!url) return;
+  try{
+    const body=JSON.stringify({products,archived,shopping,updatedAt:new Date().toISOString()});
+    await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body});
+  }catch{}
+}
+
+// ── Image resize ──────────────────────────────────────────────────────────────
+function resizeToBase64(file){return new Promise(function(resolve,reject){
+  const img=new Image();const url=URL.createObjectURL(file);
+  img.onload=function(){const ratio=Math.min(500/img.width,500/img.height,1);const w=Math.round(img.width*ratio);const hh=Math.round(img.height*ratio);const c=document.createElement("canvas");c.width=w;c.height=hh;c.getContext("2d").drawImage(img,0,0,w,hh);URL.revokeObjectURL(url);resolve(c.toDataURL("image/jpeg",0.8));};
+  img.onerror=function(){URL.revokeObjectURL(url);reject(new Error("err"));};img.src=url;
+});}
+
+// ── Batch decoders ────────────────────────────────────────────────────────────
+const EL_YEAR={A:[2005,2015,2025],B:[2006,2016,2026],C:[2007,2017],D:[2008,2018],E:[2009,2019],F:[2010,2020],G:[2011,2021],H:[2012,2022],J:[2013,2023],K:[2014,2024],L:[2015,2025],M:[2016,2026],N:[2017],P:[2018],Q:[2019],R:[2020],S:[2021],T:[2022],U:[2023],V:[2024],W:[2025],X:[2026]};
+function resolveELYear(letter,month,day){if(month<1||month>12||day<1||day>31)return null;const cands=EL_YEAR[letter];if(!cands)return null;const now=new Date();let best=null;for(const y of cands){if(new Date(y,month-1,day)<=now)best=y;}if(!best)return null;return new Date(best,month-1,day).toISOString().slice(0,10);}
+function decodeEL(code){const u=code.toUpperCase().replace(/\s/g,"");const m3=u.match(/^([A-HJ-NP-Z])(\d)(\d)$/);if(m3)return resolveELYear(m3[1],parseInt(m3[2]),parseInt(m3[3]));const m5=u.match(/^([A-HJ-NP-Z])(\d{2})(\d{2})$/);if(m5)return resolveELYear(m5[1],parseInt(m5[2]),parseInt(m5[3]));const mF=u.match(/^[A-Z]{2,3}(\d{2})(\d{2})$/);if(mF){const yr=2000+parseInt(mF[1]);const wk=parseInt(mF[2]);if(wk>=1&&wk<=53){const d=new Date(yr,0,1);d.setDate(d.getDate()+(wk-1)*7);return d.toISOString().slice(0,10);}}return null;}
+const DM1={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:9,K:10,L:11,M:12};
+const DM2={N:1,P:2,Q:3,R:4,S:5,T:6,U:7,V:8,W:9,X:10,Y:11,Z:12};
+function decodeDior(code){const u=code.toUpperCase().replace(/\s/g,"");const m=u.match(/^(\d)([A-HJ-NP-Z])(\d{2})$/);if(!m)return null;const yd=parseInt(m[1]);const ml=m[2];let month=null,set=null;if(DM1[ml]!==undefined){month=DM1[ml];set=1;}else if(DM2[ml]!==undefined){month=DM2[ml];set=2;}if(!month)return null;const now=new Date();const cands=set===1?[1998+yd,2018+yd]:[2008+yd];let best=null;for(const y of cands){if(new Date(y,month-1,1)<=now)best=y;}if(!best)return null;return new Date(best,month-1,1).toISOString().slice(0,10);}
+function decodeLRP(code){const u=code.toUpperCase().replace(/\s/g,"");const m=u.match(/^(\d{2})([A-Z])(\d{2})/);if(!m)return null;const doy=parseInt(m[1]);const yr2=parseInt(m[3]);if(doy<1||doy>366)return null;const now=new Date();const curY2=now.getFullYear()%100;const fy=yr2<=curY2?2000+yr2:1900+yr2;const d=new Date(fy,0,1);d.setDate(d.getDate()+doy-1);if(isNaN(d.getTime())||d>now)return null;return d.toISOString().slice(0,10);}
+function decodeBatch(brand,code){const c=(code||"").trim();if(!c)return null;if(brand==="mac"||brand==="el")return decodeEL(c);if(brand==="dior")return decodeDior(c);if(brand==="lrp")return decodeLRP(c);return null;}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const CATEGORIES=["Péče o pleť","Makeup","Parfém","Vlasová péče","Tělo","Ostatní"];
+const EMPTY={name:"",brand:"",category:"Péče o pleť",photoUrl:"",photoData:"",tags:"",ean:"",purchaseDate:"",purchasePrice:"",quantity:"1",batchCode:"",manufacturingDate:"",openedDate:"",paoMonths:"",expiryDate:"",notes:""};
+const BATCH_BRANDS=[{id:"mac",label:"MAC"},{id:"el",label:"Estée Lauder"},{id:"dior",label:"Dior"},{id:"lrp",label:"La Roche-Posay"}];
+const hdrBtn={padding:"6px 10px",borderRadius:"8px",border:"none",background:"rgba(116,116,128,0.12)",color:"#111",fontSize:"13px",cursor:"pointer"};
+
+// ── Small components ──────────────────────────────────────────────────────────
+function Row({icon,text,muted}){if(!text)return null;return h("div",{style:{display:"flex",alignItems:"flex-start",gap:"4px",fontSize:"12px",color:muted?"#8E8E93":"#555",marginBottom:"2px",lineHeight:"1.4"}},icon&&h("span",{style:{fontSize:"11px",marginTop:"1px"}},icon),h("span",{style:{flex:1}},text));}
+function Btn({onClick,label,color}){return h("button",{onClick,style:{flex:1,padding:"10px 4px",background:"transparent",border:"none",cursor:"pointer",fontSize:"12px",color,fontWeight:500}},label);}
+function Sec({title,children}){return h("div",null,h("div",{style:{fontSize:"12px",fontWeight:600,color:"#8E8E93",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"6px",paddingLeft:"4px"}},title),h("div",{style:{background:"#fff",borderRadius:"12px",overflow:"hidden"}},children));}
+function FI({label,type,value,onChange,ph}){return h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},label),h("input",{type:type||"text",value,onChange:e=>onChange(e.target.value),placeholder:ph||"",style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}}));}
+function FS({label,value,onChange,opts}){return h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},label),h("select",{value,onChange:e=>onChange(e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}},opts.map(o=>h("option",{key:o},o))));}
+
+// ── BatchDecoder ──────────────────────────────────────────────────────────────
+function BatchDecoder({form,setForm}){
+  const [brand,setBrand]=useState("mac");
+  const [result,setResult]=useState(null);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  useEffect(()=>{const b=(form.brand||"").toLowerCase();if(b.includes("mac"))setBrand("mac");else if(b.includes("estée")||b.includes("estee")||b.includes("lauder"))setBrand("el");else if(b.includes("dior"))setBrand("dior");else if(b.includes("roche")||b.includes("posay"))setBrand("lrp");},[form.brand]);
+  const decode=()=>{const code=(form.batchCode||"").trim();if(!code){setResult({ok:false,msg:"Zadejte batch kód."});return;}const date=decodeBatch(brand,code);if(date){set("manufacturingDate",date);const formatted=new Date(date).toLocaleDateString("cs-CZ",{year:"numeric",month:"long"});setResult({ok:true,msg:"Výroba: "+formatted});}else{setResult({ok:false,msg:"Nepodařilo se dekódovat. Zkontrolujte formát nebo zadejte ručně."});}};
+  return h("div",null,
+    h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Batch kód"),h("input",{type:"text",value:form.batchCode||"",onChange:e=>{set("batchCode",e.target.value);setResult(null);},placeholder:"napr. A35, 6A01…",style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}})),
+    h("div",{style:{padding:"10px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},
+      h("div",{style:{fontSize:"12px",color:"#8E8E93",marginBottom:"6px"}},"Značka pro dekódování:"),
+      h("div",{style:{display:"flex",gap:"6px",flexWrap:"wrap",marginBottom:"8px"}},BATCH_BRANDS.map(br=>h("button",{key:br.id,onClick:()=>{setBrand(br.id);setResult(null);},style:{padding:"5px 12px",borderRadius:"20px",border:"none",fontSize:"13px",fontWeight:brand===br.id?600:400,background:brand===br.id?"#111":"rgba(116,116,128,0.12)",color:brand===br.id?"#fff":"#555"}},br.label))),
+      h("button",{onClick:decode,style:{width:"100%",background:"#007AFF",color:"#fff",border:"none",borderRadius:"10px",padding:"10px",fontSize:"14px",fontWeight:600}},"Dekódovat datum výroby"),
+      result&&h("div",{style:{fontSize:"13px",color:result.ok?"#34C759":"#FF9500",marginTop:"6px",fontWeight:result.ok?600:400}},(result.ok?"✓ ":"⚠ ")+result.msg),
+      brand==="lrp"&&h("div",{style:{fontSize:"12px",color:"#8E8E93",marginTop:"6px",lineHeight:1.5}},"La Roche-Posay má více formátů — výsledek je orientační.")),
+    h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px"}},h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Datum výroby"),h("input",{type:"date",value:form.manufacturingDate||"",onChange:e=>{set("manufacturingDate",e.target.value);setResult(null);},style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}})));
+}
+
+// ── Card ──────────────────────────────────────────────────────────────────────
+function Card({product:p,isArchived,onEdit,onArchive,onDelete,onDuplicate}){
+  const [open,setOpen]=useState(false);
+  const [lightbox,setLightbox]=useState(false);
+  const color=expiryColor(p._days);
+  const expiryStr=expiryText(p._days,p._exp);
+  const tags=(p.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
+  const imgSrc=p.photoData||p.photoUrl||null;
+  return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}},
+    lightbox&&imgSrc&&h("div",{onClick:()=>setLightbox(false),style:{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("img",{src:imgSrc,alt:"",style:{maxWidth:"100%",maxHeight:"90vh",borderRadius:"12px",objectFit:"contain"}})),
+    h("div",{style:{display:"flex",padding:"12px",gap:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
+      h("div",{style:{width:"56px",height:"56px",borderRadius:"10px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"},onClick:e=>{if(imgSrc){e.stopPropagation();setLightbox(true);}}},
+        imgSrc?h("img",{src:imgSrc,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"26px"}},"🧴")),
+      h("div",{style:{flex:1,minWidth:0}},
+        h("div",{style:{fontWeight:600,fontSize:"15px",marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},p.name),
+        (p.brand||tags.length>0)&&h("div",{style:{fontSize:"12px",color:"#8E8E93",marginBottom:"2px"}},[p.brand,...tags.map(t=>"#"+t)].filter(Boolean).join("  ")),
+        (p.purchaseDate||p.quantity||p.purchasePrice)&&h(Row,{icon:"🛍",text:[p.quantity&&p.quantity+" ks",p.purchaseDate&&fmtDate(p.purchaseDate),p.purchasePrice&&p.purchasePrice+" Kč"].filter(Boolean).join(" · ")}),
+        p.openedDate&&h(Row,{icon:"🔓",text:["Otevřeno "+fmtDate(p.openedDate),p.paoMonths&&"PAO "+p.paoMonths+"M"].filter(Boolean).join(" · ")}),
+        p.batchCode&&h(Row,{icon:"🏷",text:[p.batchCode,p.manufacturingDate&&"výroba "+fmtDate(p.manufacturingDate)].filter(Boolean).join(" · ")}),
+        p.notes&&h(Row,{icon:"📝",text:p.notes,muted:true}),
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},
+          expiryStr?h("div",{style:{fontSize:"13px",fontWeight:600,color}},expiryStr):!p.openedDate?h("div",{style:{fontSize:"13px",fontWeight:600,color:"#8E8E93"}},"Zásoba"):h("div"),
+          h("div",{style:{fontSize:"12px",color:"#C7C7CC"}},p.category)),
+        isArchived&&p.archivedDate&&h("div",{style:{fontSize:"11px",color:"#8E8E93",marginTop:"2px"}},(p.archivedReason==="used"?"Spotřebováno":"Vyhozeno")+" - "+fmtDate(p.archivedDate)))),
+    open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
+      !isArchived&&h(React.Fragment,null,h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),h(Btn,{onClick:onDuplicate,label:"Duplikovat",color:"#5856D6"}),h(Btn,{onClick:()=>onArchive("used"),label:"Spotřebováno",color:"#34C759"}),h(Btn,{onClick:()=>onArchive("thrown"),label:"Vyhodit",color:"#FF9500"})),
+      isArchived&&h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
+      h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
+}
+
+// ── ExportBox ─────────────────────────────────────────────────────────────────
+function ShoppingList({shopping,onToggle,onDelete,onClear}){
+  const pending=shopping.filter(s=>!s.bought);
+  const bought=shopping.filter(s=>s.bought);
+  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+    shopping.length===0&&h("div",{style:{textAlign:"center",padding:"64px 16px",color:"#8E8E93"}},
+      h("div",{style:{fontSize:"44px",marginBottom:"10px"}},"🛒"),
+      h("div",{style:{fontSize:"15px"}},"Nákupní seznam je prázdný")),
+    pending.length>0&&h("div",null,
+      pending.map(s=>h("div",{key:s.id,style:{background:"#fff",borderRadius:"13px",padding:"12px",display:"flex",alignItems:"center",gap:"12px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}},
+        h("div",{style:{width:"44px",height:"44px",borderRadius:"8px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}},
+          (s.photoData||s.photoUrl)?h("img",{src:s.photoData||s.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"20px"}},"🧴")),
+        h("div",{style:{flex:1,minWidth:0}},
+          h("div",{style:{fontWeight:600,fontSize:"14px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},s.name),
+          h("div",{style:{fontSize:"12px",color:"#8E8E93"}},s.brand)),
+        h("div",{style:{display:"flex",gap:"6px",flexShrink:0}},
+          h("button",{onClick:()=>onToggle(s.id),style:{background:"#34C759",border:"none",borderRadius:"8px",padding:"6px 10px",fontSize:"12px",color:"#fff",fontWeight:600,cursor:"pointer"}},"✓ Koupeno"),
+          h("button",{onClick:()=>onDelete(s.id),style:{background:"#F2F2F7",border:"none",borderRadius:"8px",padding:"6px 10px",fontSize:"12px",color:"#FF3B30",fontWeight:600,cursor:"pointer"}},"✕"))))),
+    bought.length>0&&h("div",null,
+      h("div",{style:{fontSize:"12px",fontWeight:600,color:"#8E8E93",textTransform:"uppercase",letterSpacing:"0.5px",padding:"8px 4px 4px"}},"Koupeno"),
+      bought.map(s=>h("div",{key:s.id,style:{background:"#fff",borderRadius:"13px",padding:"12px",display:"flex",alignItems:"center",gap:"12px",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",opacity:0.5}},
+        h("div",{style:{width:"44px",height:"44px",borderRadius:"8px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}},
+          (s.photoData||s.photoUrl)?h("img",{src:s.photoData||s.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"20px"}},"🧴")),
+        h("div",{style:{flex:1,minWidth:0}},
+          h("div",{style:{fontWeight:600,fontSize:"14px",textDecoration:"line-through",color:"#8E8E93",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},s.name),
+          h("div",{style:{fontSize:"12px",color:"#C7C7CC"}},s.brand)),
+        h("button",{onClick:()=>onDelete(s.id),style:{background:"#F2F2F7",border:"none",borderRadius:"8px",padding:"6px 10px",fontSize:"12px",color:"#FF3B30",fontWeight:600,cursor:"pointer",flexShrink:0}},"✕"))),
+      h("button",{onClick:onClear,style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"8px",cursor:"pointer",marginTop:"4px"}},"Smazat koupené")));
+}
+
+function ExportBox({products,archived}){
+  const [text,setText]=useState(null);
+  const [copied,setCopied]=useState(false);
+  const show=()=>{setText(JSON.stringify({exported:new Date().toISOString(),products,archived},null,2));setCopied(false);};
+  const copy=()=>{if(!text)return;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>setCopied(true));}else{const el=document.getElementById("exp-ta");if(el){el.select();document.execCommand("copy");setCopied(true);}}};
+  return h("div",{style:{background:"#fff",borderRadius:"12px",overflow:"hidden",marginBottom:"12px"}},
+    h("div",{style:{padding:"14px 16px"}},
+      h("div",{style:{fontWeight:600,marginBottom:"4px"}},"Exportovat zálohu"),
+      h("div",{style:{fontSize:"13px",color:"#8E8E93",marginBottom:"10px",lineHeight:1.5}},"Zobraz JSON, pak Kopírovat — ulož do Poznámek."),
+      !text?h("button",{onClick:show,style:{width:"100%",background:"#111",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Zobrazit JSON"):
+      h("div",null,
+        h("textarea",{id:"exp-ta",readOnly:true,value:text,rows:6,style:{width:"100%",padding:"10px 12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"11px",outline:"none",background:"#F2F2F7",fontFamily:"monospace",resize:"none",color:"#555",marginBottom:"8px"}}),
+        h("button",{onClick:copy,style:{width:"100%",background:copied?"#34C759":"#007AFF",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},copied?"✓ Zkopírováno!":"Kopírovat"))));
+}
+
+// ── SyncSheet ─────────────────────────────────────────────────────────────────
+function SyncSheet({products,archived,productCount,archivedCount,onPasteImport,onClose}){
+  const [paste,setPaste]=useState("");
+  const [status,setStatus]=useState(null);
+  const [pending,setPending]=useState(null);
+  const parse=()=>{const t=paste.trim();if(!t){setStatus({ok:false,msg:"Pole je prázdné."});return;}const s=t.indexOf("{");const e=t.lastIndexOf("}");if(s<0||e<0){setStatus({ok:false,msg:"Neplatný JSON."});return;}try{const data=JSON.parse(t.slice(s,e+1));if(!data.products||!Array.isArray(data.products)){setStatus({ok:false,msg:"JSON neobsahuje produkty."});return;}setPending(data);setStatus({ok:null,msg:"Nalezeno "+data.products.length+" produktů. Potvrdit?"});}catch{setStatus({ok:false,msg:"Chyba při čtení JSON."});}};
+  const confirm=()=>{if(!pending)return;onPasteImport(pending);const n=pending.products.length;setPaste("");setPending(null);setStatus({ok:true,msg:"Importováno "+n+" produktů."});};
+  return h("div",{style:{position:"fixed",inset:0,zIndex:100,display:"flex",flexDirection:"column",justifyContent:"flex-end"}},
+    h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"},onClick:onClose}),
+    h("div",{style:{position:"relative",background:"#F2F2F7",borderRadius:"20px 20px 0 0",maxHeight:"90vh",overflowY:"auto",padding:"16px 16px 48px"}},
+      h("div",{style:{textAlign:"center",marginBottom:"16px"}},h("div",{style:{width:"36px",height:"4px",background:"#C7C7CC",borderRadius:"2px",display:"inline-block"}})),
+      h("div",{style:{fontWeight:600,fontSize:"17px",marginBottom:"4px"}},"Záloha"),
+      h("div",{style:{fontSize:"13px",color:"#8E8E93",marginBottom:"16px"}},productCount+" produktů · "+archivedCount+" archivů"),
+      h(ExportBox,{products,archived}),
+      h("div",{style:{background:"#fff",borderRadius:"12px",overflow:"hidden",marginBottom:"12px"}},
+        h("div",{style:{padding:"14px 16px"}},
+          h("div",{style:{fontWeight:600,marginBottom:"4px"}},"Importovat zálohu"),
+          h("div",{style:{fontSize:"13px",color:"#8E8E93",marginBottom:"10px",lineHeight:1.5}},"Vlož sem obsah JSON zálohy (podržet prst → Vložit):"),
+          h("textarea",{value:paste,onChange:e=>{setPaste(e.target.value);setStatus(null);},placeholder:"Sem vložit JSON...",rows:5,style:{width:"100%",padding:"10px 12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"13px",outline:"none",background:"#F2F2F7",fontFamily:"monospace",resize:"none",color:"#111",marginBottom:"8px"}}),
+          status&&h("div",{style:{fontSize:"13px",color:status.ok===true?"#34C759":status.ok===false?"#FF3B30":"#FF9500",marginBottom:"8px",fontWeight:500}},(status.ok===true?"✓ ":"⚠ ")+status.msg),
+          pending?h("div",{style:{display:"flex",gap:"8px"}},h("button",{onClick:()=>{setPending(null);setStatus(null);},style:{flex:1,background:"#F2F2F7",color:"#111",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Zrušit"),h("button",{onClick:confirm,style:{flex:1,background:"#34C759",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Ano, importovat")):
+          h("button",{onClick:parse,style:{width:"100%",background:"#007AFF",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Importovat"))),
+      h("button",{onClick:onClose,style:{width:"100%",background:"transparent",border:"none",color:"#007AFF",fontSize:"16px",padding:"12px"}},"Zavřít")));
+}
+
+// ── FormSheet ─────────────────────────────────────────────────────────────────
+function FormSheet({form,setForm,onSave,onClose,isEdit}){
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const [eanStatus,setEanStatus]=useState(null);
+  const [pasteBox,setPasteBox]=useState("");
+  const [photoLoading,setPhotoLoading]=useState(false);
+  const imgSrc=form.photoData||form.photoUrl||null;
+  const computedExpiry=form.openedDate&&form.paoMonths>0?addMonths(form.openedDate,form.paoMonths).toLocaleDateString("cs-CZ"):null;
+  const applyData=data=>{if(!data||(!data.name&&!data.brand)){setEanStatus({ok:false,msg:"Data nenalezena."});return;}let pd="";if(data.photoData){const s=String(data.photoData).trim();pd=s.startsWith("data:")?s:s.length>100?"data:image/jpeg;base64,"+s:"";}setForm(f=>({...f,name:data.name?String(data.name).trim():f.name,brand:data.brand?String(data.brand).trim():f.brand,category:data.category||f.category,photoUrl:data.photoUrl||f.photoUrl,photoData:pd||f.photoData}));setEanStatus({ok:true,msg:"Načteno: "+(data.name||data.brand||"OK")});setPasteBox("");};
+  const handlePaste=text=>{setPasteBox(text);const t=text.trim();if(!t)return;const s=t.indexOf("{");const e=t.lastIndexOf("}");if(s<0||e<0)return;try{applyData(JSON.parse(t.slice(s,e+1)));}catch{}};
+  const handlePhoto=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;e.target.value="";setPhotoLoading(true);try{const b=await resizeToBase64(file);setForm(f=>({...f,photoData:b}));}catch{alert("Nepodařilo se načíst obrázek.");}setPhotoLoading(false);};
+  const openShortcut=()=>{const ean=(form.ean||"").trim();if(!ean){alert("Nejdříve zadejte EAN.");return;}window.location.href="shortcuts://run-shortcut?name=Kosmetika%20EAN&input="+encodeURIComponent(ean);};
+  return h("div",{style:{position:"fixed",inset:0,zIndex:100,display:"flex",flexDirection:"column",justifyContent:"flex-end"}},
+    h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"},onClick:onClose}),
+    h("div",{style:{position:"relative",background:"#F2F2F7",borderRadius:"20px 20px 0 0",maxHeight:"93vh",overflowY:"auto"}},
+      h("div",{style:{padding:"10px 0 0",textAlign:"center"}},h("div",{style:{width:"36px",height:"4px",background:"#C7C7CC",borderRadius:"2px",display:"inline-block"}})),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 14px"}},
+        h("button",{onClick:onClose,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px"}},"Zrušit"),
+        h("div",{style:{fontWeight:600,fontSize:"17px"}},isEdit?"Upravit produkt":"Nový produkt"),
+        h("button",{onClick:onSave,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px",fontWeight:600}},"Uložit")),
+      h("div",{style:{padding:"0 16px 48px",display:"flex",flexDirection:"column",gap:"24px"}},
+        h(Sec,{title:"Načíst z EAN"},
+          h("div",{style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"10px"}},
+            h("input",{value:form.ean||"",onChange:e=>set("ean",e.target.value),placeholder:"EAN (13 číslic)...",style:{padding:"10px 12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"14px",outline:"none",background:"#fff",width:"100%"}}),
+            h("button",{onClick:openShortcut,style:{width:"100%",background:"#111",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"14px",fontWeight:600}},"Spustit Shortcut Kosmetika EAN"),
+            h("div",{style:{fontSize:"12px",color:"#8E8E93"}},"Po dokončení Shortcutu — podržet prst v poli níže a Vložit:"),
+            h("textarea",{value:pasteBox,onChange:e=>handlePaste(e.target.value),placeholder:"Sem vložit data ze Shortcutu...",rows:3,style:{width:"100%",padding:"10px 12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"13px",outline:"none",background:"#fff",resize:"none",color:"#111"}}),
+            eanStatus&&h("div",{style:{fontSize:"12px",color:eanStatus.ok?"#34C759":"#FF9500"}},eanStatus.msg))),
+        h(Sec,{title:"Produkt"},
+          h("div",{style:{padding:"12px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},
+            h("div",{style:{display:"flex",gap:"12px",alignItems:"flex-start"}},
+              h("div",{style:{width:"72px",height:"72px",borderRadius:"10px",background:"#F2F2F7",overflow:"hidden",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}},
+                photoLoading?h("div",{style:{fontSize:"11px",color:"#8E8E93"}},"..."):imgSrc?h("img",{src:imgSrc,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"28px"}},"🧴")),
+              h("div",{style:{flex:1}},
+                h("div",{style:{fontSize:"12px",color:"#8E8E93",marginBottom:"6px"}},"Foto: URL nebo z galerie"),
+                h("input",{value:form.photoUrl||"",onChange:e=>set("photoUrl",e.target.value),placeholder:"URL obrázku...",style:{border:"1px solid #E0E0E0",borderRadius:"8px",padding:"8px 10px",fontSize:"13px",outline:"none",background:"#fff",width:"100%",marginBottom:"6px"}}),
+                h("label",{style:{display:"block",background:"#F2F2F7",border:"1px solid #E0E0E0",borderRadius:"8px",padding:"8px 12px",fontSize:"13px",textAlign:"center",cursor:"pointer"}},"Vybrat z galerie / vyfotit",h("input",{type:"file",accept:"image/*",onChange:handlePhoto,style:{display:"none"}})),
+                form.photoData&&h("button",{onClick:()=>set("photoData",""),style:{background:"transparent",border:"none",color:"#FF3B30",fontSize:"12px",cursor:"pointer",padding:"4px 0"}},"Odebrat foto")))),
+          h(FI,{label:"Název *",value:form.name,onChange:v=>set("name",v),ph:"napr. Hydratační krém"}),
+          h(FI,{label:"Značka",value:form.brand,onChange:v=>set("brand",v),ph:"napr. La Roche-Posay"}),
+          h(FS,{label:"Kategorie",value:form.category,onChange:v=>set("category",v),opts:CATEGORIES}),
+          h(FI,{label:"Tagy",value:form.tags,onChange:v=>set("tags",v),ph:"pece, nocni (čárkou)"})),
+        h(Sec,{title:"Nákup"},
+          h(FI,{label:"Datum nákupu",type:"date",value:form.purchaseDate,onChange:v=>set("purchaseDate",v)}),
+          h(FI,{label:"Počet kusů",type:"number",value:form.quantity,onChange:v=>set("quantity",v),ph:"1"}),
+          h(FI,{label:"Cena (Kč)",type:"number",value:form.purchasePrice,onChange:v=>set("purchasePrice",v),ph:"0"})),
+        h(Sec,{title:"Batch kód"},h(BatchDecoder,{form,setForm})),
+        h(Sec,{title:"Otevření a expirace"},
+          h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},
+          h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Datum otevření"),
+          h("input",{type:"date",value:form.openedDate||"",onChange:e=>set("openedDate",e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}}),
+          form.openedDate&&h("button",{onClick:()=>set("openedDate",""),style:{marginLeft:"8px",background:"transparent",border:"none",color:"#FF3B30",fontSize:"13px",cursor:"pointer",flexShrink:0,padding:"0 4px"}},"✕")),
+          h(FI,{label:"PAO (měsíce)",type:"number",value:form.paoMonths,onChange:v=>set("paoMonths",v),ph:"12"}),
+          h(FI,{label:"Fixní expirace",type:"date",value:form.expiryDate,onChange:v=>set("expiryDate",v)}),
+          computedExpiry&&h("div",{style:{padding:"6px 16px",fontSize:"13px",color:"#34C759",fontWeight:500}},"Vypočítaná expirace: "+computedExpiry)),
+        h(Sec,{title:"Poznámky"},
+          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
+}
+
+// ── Setup obrazovka ──────────────────────────────────────────────────────────
+function SetupScreen({onSave}){
+  const [val,setVal]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+  const save=async()=>{
+    const t=val.trim();
+    if(!t){setErr("Zadej token.");return;}
+    setLoading(true);setErr("");
+    const data=await fetchFromAirtable(t);
+    if(data&&data.error){setErr("Token nefunguje ("+data.error+"). Zkontroluj ho a zkus znovu.");setLoading(false);return;}
+    setToken(t);
+    onSave(t,data);
+  };
+  return h("div",{style:{minHeight:"100vh",background:"#F2F2F7",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+    h("div",{style:{background:"#fff",borderRadius:"20px",padding:"32px 24px",width:"100%",maxWidth:"360px",textAlign:"center"}},
+      h("div",{style:{fontSize:"48px",marginBottom:"12px"}},"🔑"),
+      h("div",{style:{fontSize:"22px",fontWeight:700,marginBottom:"8px"}},"Propojit s Airtable"),
+      h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"24px",lineHeight:1.5}},"Zadej svůj Airtable Personal Access Token. Uloží se jen do tohoto zařízení."),
+      h("input",{type:"password",value:val,onChange:e=>setVal(e.target.value),placeholder:"pat...",style:{width:"100%",padding:"12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"15px",outline:"none",marginBottom:"8px",fontFamily:"monospace"}}),
+      err&&h("div",{style:{fontSize:"13px",color:"#FF3B30",marginBottom:"12px"}},"⚠ "+err),
+      h("button",{onClick:save,disabled:loading,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"12px",padding:"14px",fontSize:"16px",fontWeight:600}},loading?"Připojuji...":"Připojit"),
+      h("div",{style:{fontSize:"12px",color:"#C7C7CC",marginTop:"16px",lineHeight:1.5}},"Token najdeš na airtable.com/create/tokens")));
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const [token,setTokenState]=useState(()=>getToken());
+  const [products,setProducts]=useState(()=>loadKey("cos-v2-products"));
+  const [archived,setArchived]=useState(()=>loadKey("cos-v2-archived"));
+  const [shopping,setShopping]=useState(()=>loadKey("cos-v2-shopping"));
+  const [tab,setTab]=useState("all");
+  const [search,setSearch]=useState("");
+  const [form,setForm]=useState(EMPTY);
+  const [editId,setEditId]=useState(null);
+  const [showForm,setShowForm]=useState(false);
+  const [showSync,setShowSync]=useState(false);
+  const [showDel,setShowDel]=useState(null);
+  const [syncStatus,setSyncStatus]=useState(null);
+
+  const handleSetup=(t,data)=>{
+    setTokenState(t);
+    if(data&&data.products){
+      setProducts(data.products);
+      setArchived(data.archived||[]);
+      setShopping(data.shopping||[]);
+      saveKey("cos-v2-products",data.products);
+      saveKey("cos-v2-archived",data.archived||[]);
+      saveKey("cos-v2-shopping",data.shopping||[]);
+    }
+    setSyncStatus("ok");
+  };
+
+  // Načtení dat z Airtable při startu
+  useEffect(()=>{
+    if(!token){setSyncStatus(null);return;}
+    setSyncStatus("syncing");
+    fetchFromAirtable(token).then(data=>{
+      if(data&&data.products){
+        setProducts(data.products);
+        setArchived(data.archived||[]);
+        setShopping(data.shopping||[]);
+        saveKey("cos-v2-products",data.products);
+        saveKey("cos-v2-archived",data.archived||[]);
+        saveKey("cos-v2-shopping",data.shopping||[]);
+        setSyncStatus("ok");
+      } else {
+        setSyncStatus("offline");
+      }
+    });
+  },[token]);
+
+  if(!token) return h(SetupScreen,{onSave:handleSetup});
+
+  const saveProds=list=>{
+    setProducts(list);saveKey("cos-v2-products",list);
+    pushToAirtable(token,list,archived,shopping);
+  };
+  const saveArch=list=>{
+    setArchived(list);saveKey("cos-v2-archived",list);
+    pushToAirtable(token,products,list,shopping);
+  };
+  const saveShop=list=>{
+    setShopping(list);saveKey("cos-v2-shopping",list);
+    pushToAirtable(token,products,archived,list);
+  };
+  const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
+  const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
+  const handleSave=()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);saveProds([...products,{...form,id}]);}setShowForm(false);};
+  const duplicateProd=p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};saveProds([...products,dup]);};
+  const [showBuyPrompt,setShowBuyPrompt]=useState(null);
+  const addToShopping=(p)=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const item={id,name:p.name,brand:p.brand,photoUrl:p.photoUrl,photoData:p.photoData,addedDate:new Date().toISOString(),bought:false};saveShop([...shopping,item]);};
+  const toggleBought=(id)=>saveShop(shopping.map(s=>s.id===id?{...s,bought:!s.bought}:s));
+  const deleteShop=(id)=>saveShop(shopping.filter(s=>s.id!==id));
+  const clearBought=()=>saveShop(shopping.filter(s=>!s.bought));
+  const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
+  const [showArchiveEdit,setShowArchiveEdit]=useState(false);
+  const archiveProd=(p,reason)=>{saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString()}]);setShowBuyPrompt(p);};
+  const deleteProd=id=>{saveProds(products.filter(p=>p.id!==id));};
+  const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
+  const pasteImport=data=>{saveProds(data.products);saveArch(data.archived||[]);if(data.shopping)saveShop(data.shopping);};
+
+  const enrich=list=>list.map(p=>{const exp=computeExpiry(p);const days=exp?daysLeft(exp):null;return{...p,_exp:exp,_days:days};});
+  const q=search.toLowerCase();
+  const match=p=>!q||p.name.toLowerCase().includes(q)||(p.brand||"").toLowerCase().includes(q)||(p.tags||"").toLowerCase().includes(q);
+  const enriched=enrich(products).filter(match);
+  const soon=enriched.filter(p=>p._days!==null&&p._days>=0&&p._days<=60);
+  const expired=enriched.filter(p=>p._days!==null&&p._days<0);
+  const archEnr=enrich(archived).filter(match);
+  const active=enriched.filter(p=>!soon.includes(p)&&!expired.includes(p));
+  const stock=enriched.filter(p=>!p.openedDate);
+  const displayed=tab==="all"?[...expired,...soon,...active]:tab==="soon"?soon:tab==="expired"?expired:tab==="stock"?stock:tab==="archived"?archEnr:[];
+  const tabs=[{id:"all",label:"Vše",count:enriched.length},{id:"soon",label:"Brzy",count:soon.length},{id:"expired",label:"Expirováno",count:expired.length},{id:"stock",label:"Zásoba",count:stock.length},{id:"archived",label:"Archiv",count:archEnr.length},{id:"shopping",label:"Nákup",count:shopping.filter(s=>!s.bought).length}];
+
+  return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
+    h("div",{style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
+          h("div",{style:{fontSize:"22px",fontWeight:700,letterSpacing:"-0.5px"}},"Kosmetika"),
+          syncStatus==="syncing"&&h("div",{style:{fontSize:"11px",color:"#8E8E93",padding:"2px 7px",background:"rgba(116,116,128,0.1)",borderRadius:"20px"}},"⏳ Načítám"),
+          syncStatus==="ok"&&h("div",{style:{fontSize:"11px",color:"#34C759",padding:"2px 7px",background:"rgba(52,199,89,0.1)",borderRadius:"20px"}},"✓ Synced"),
+          syncStatus==="offline"&&h("div",{style:{fontSize:"11px",color:"#FF9500",padding:"2px 7px",background:"rgba(255,149,0,0.1)",borderRadius:"20px"}},"⚠ Offline")),
+        h("div",{style:{display:"flex",gap:"6px"}},
+          h("button",{onClick:()=>setShowSync(true),style:hdrBtn},"Záloha"),
+          h("button",{onClick:openAdd,style:{...hdrBtn,background:"#000",color:"#fff",fontWeight:600,padding:"6px 14px"}},"+ Přidat"))),
+      h("input",{value:search,onChange:e=>setSearch(e.target.value),placeholder:"Hledat produkt, značku nebo tag...",style:{width:"100%",padding:"8px 12px",borderRadius:"10px",border:"none",background:"rgba(116,116,128,0.12)",fontSize:"14px",outline:"none",marginBottom:"10px"}}),
+      h("div",{style:{display:"flex",overflowX:"auto"}},tabs.map(t=>h("button",{key:t.id,onClick:()=>setTab(t.id),style:{padding:"8px 14px",border:"none",background:"transparent",color:tab===t.id?"#111":"#8E8E93",borderBottom:tab===t.id?"2px solid #111":"2px solid transparent",fontWeight:tab===t.id?600:400,fontSize:"14px",cursor:"pointer",whiteSpace:"nowrap"}},t.label+(t.count>0?" ("+t.count+")":""))))),
+    h("div",{style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
+      tab==="shopping"?h(ShoppingList,{shopping,onToggle:toggleBought,onDelete:deleteShop,onClear:clearBought}):
+      h(React.Fragment,null,
+        displayed.length===0&&h("div",{style:{textAlign:"center",padding:"64px 16px",color:"#8E8E93"}},
+          h("div",{style:{fontSize:"44px",marginBottom:"10px"}},"✨"),
+          h("div",{style:{fontSize:"15px"}},tab==="all"?"Žádné produkty":tab==="soon"?"Nic brzy neexpiruje":tab==="expired"?"Žádné expirované":tab==="stock"?"Žádné zásoby":"Archiv je prázdný"),
+          tab==="all"&&h("button",{onClick:openAdd,style:{marginTop:"16px",background:"#000",color:"#fff",border:"none",padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600}},"Přidat první produkt")),
+        displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>{if(tab==="archived"){editArchived(p);}else{openEdit(p);}},onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"}),onDuplicate:()=>duplicateProd(p)})))),
+    showBuyPrompt&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)"},onClick:()=>setShowBuyPrompt(null)}),
+      h("div",{style:{position:"relative",background:"#fff",borderRadius:"16px",padding:"24px",width:"100%",maxWidth:"320px",textAlign:"center"}},
+        h("div",{style:{fontSize:"22px",marginBottom:"8px"}},"🛒"),
+        h("div",{style:{fontWeight:600,fontSize:"17px",marginBottom:"6px"}},"Přidat na nákupní seznam?"),
+        h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"20px"}},showBuyPrompt.name),
+        h("div",{style:{display:"flex",gap:"8px"}},
+          h("button",{onClick:()=>setShowBuyPrompt(null),style:{flex:1,background:"#F2F2F7",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Ne"),
+          h("button",{onClick:()=>{addToShopping(showBuyPrompt);setShowBuyPrompt(null);setTab("shopping");},style:{flex:1,background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Přidat")))),
+    showSync&&h(SyncSheet,{products,archived,productCount:products.length,archivedCount:archived.length,onPasteImport:pasteImport,onClose:()=>setShowSync(false)}),
+    showForm&&h(FormSheet,{form,setForm,onSave:handleSave,onClose:()=>setShowForm(false),isEdit:!!editId}),
+    showDel&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)"},onClick:()=>setShowDel(null)}),
+      h("div",{style:{position:"relative",background:"#fff",borderRadius:"16px",padding:"24px",width:"100%",maxWidth:"320px",textAlign:"center"}},
+        h("div",{style:{fontWeight:600,fontSize:"17px",marginBottom:"8px"}},"Smazat produkt?"),
+        h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"20px"}},"Tato akce je nevratná."),
+        h("div",{style:{display:"flex",gap:"8px"}},
+          h("button",{onClick:()=>setShowDel(null),style:{flex:1,background:"#F2F2F7",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Zrušit"),
+          h("button",{onClick:()=>{showDel.isArchived?deleteArch(showDel.id):deleteProd(showDel.id);setShowDel(null);},style:{flex:1,background:"#FF3B30",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Smazat")))));
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
