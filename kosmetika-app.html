@@ -83,15 +83,18 @@ function BatchDecoder({form,setForm}){
 }
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-function Card({product:p,isArchived,onEdit,onArchive,onDelete}){
+function Card({product:p,isArchived,onEdit,onArchive,onDelete,onDuplicate}){
   const [open,setOpen]=useState(false);
+  const [lightbox,setLightbox]=useState(false);
   const color=expiryColor(p._days);
   const expiryStr=expiryText(p._days,p._exp);
   const tags=(p.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
   const imgSrc=p.photoData||p.photoUrl||null;
   return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}},
+    lightbox&&imgSrc&&h("div",{onClick:()=>setLightbox(false),style:{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("img",{src:imgSrc,alt:"",style:{maxWidth:"100%",maxHeight:"90vh",borderRadius:"12px",objectFit:"contain"}})),
     h("div",{style:{display:"flex",padding:"12px",gap:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
-      h("div",{style:{width:"56px",height:"56px",borderRadius:"10px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}},
+      h("div",{style:{width:"56px",height:"56px",borderRadius:"10px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"},onClick:e=>{if(imgSrc){e.stopPropagation();setLightbox(true);}}},
         imgSrc?h("img",{src:imgSrc,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"26px"}},"🧴")),
       h("div",{style:{flex:1,minWidth:0}},
         h("div",{style:{fontWeight:600,fontSize:"15px",marginBottom:"3px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},p.name),
@@ -105,7 +108,8 @@ function Card({product:p,isArchived,onEdit,onArchive,onDelete}){
           h("div",{style:{fontSize:"12px",color:"#C7C7CC"}},p.category)),
         isArchived&&p.archivedDate&&h("div",{style:{fontSize:"11px",color:"#8E8E93",marginTop:"2px"}},(p.archivedReason==="used"?"Spotřebováno":"Vyhozeno")+" - "+fmtDate(p.archivedDate)))),
     open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
-      !isArchived&&h(React.Fragment,null,h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),h(Btn,{onClick:()=>onArchive("used"),label:"Spotřebováno",color:"#34C759"}),h(Btn,{onClick:()=>onArchive("thrown"),label:"Vyhodit",color:"#FF9500"})),
+      !isArchived&&h(React.Fragment,null,h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),h(Btn,{onClick:onDuplicate,label:"Duplikovat",color:"#5856D6"}),h(Btn,{onClick:()=>onArchive("used"),label:"Spotřebováno",color:"#34C759"}),h(Btn,{onClick:()=>onArchive("thrown"),label:"Vyhodit",color:"#FF9500"})),
+      isArchived&&h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
       h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
 }
 
@@ -222,7 +226,10 @@ function App(){
   const saveArch=list=>{setArchived(list);saveKey("cos-v2-archived",list);};
   const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
   const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
-  const handleSave=()=>{if(!form.name.trim())return;if(editId){saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);saveProds([...products,{...form,id}]);}setShowForm(false);};
+  const handleSave=()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);saveProds([...products,{...form,id}]);}setShowForm(false);};
+  const duplicateProd=p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};saveProds([...products,dup]);};
+  const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
+  const [showArchiveEdit,setShowArchiveEdit]=useState(false);
   const archiveProd=(p,reason)=>{saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString()}]);};
   const deleteProd=id=>{saveProds(products.filter(p=>p.id!==id));};
   const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
@@ -253,7 +260,7 @@ function App(){
         h("div",{style:{fontSize:"44px",marginBottom:"10px"}},"✨"),
         h("div",{style:{fontSize:"15px"}},tab==="all"?"Žádné produkty":tab==="soon"?"Nic brzy neexpiruje":tab==="expired"?"Žádné expirované":"Archiv je prázdný"),
         tab==="all"&&h("button",{onClick:openAdd,style:{marginTop:"16px",background:"#000",color:"#fff",border:"none",padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600}},"Přidat první produkt")),
-      displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>openEdit(p),onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"})}))),
+      displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>{if(tab==="archived"){editArchived(p);}else{openEdit(p);}},onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"}),onDuplicate:()=>duplicateProd(p)}))),
     showSync&&h(SyncSheet,{products,archived,productCount:products.length,archivedCount:archived.length,onPasteImport:pasteImport,onClose:()=>setShowSync(false)}),
     showForm&&h(FormSheet,{form,setForm,onSave:handleSave,onClose:()=>setShowForm(false),isEdit:!!editId}),
     showDel&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
