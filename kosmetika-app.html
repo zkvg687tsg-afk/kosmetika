@@ -104,7 +104,7 @@ function Card({product:p,isArchived,onEdit,onArchive,onDelete,onDuplicate}){
         p.batchCode&&h(Row,{icon:"🏷",text:[p.batchCode,p.manufacturingDate&&"výroba "+fmtDate(p.manufacturingDate)].filter(Boolean).join(" · ")}),
         p.notes&&h(Row,{icon:"📝",text:p.notes,muted:true}),
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:"6px"}},
-          expiryStr?h("div",{style:{fontSize:"13px",fontWeight:600,color}},(expiryStr)):h("div"),
+          expiryStr?h("div",{style:{fontSize:"13px",fontWeight:600,color}},expiryStr):!p.openedDate?h("div",{style:{fontSize:"13px",fontWeight:600,color:"#8E8E93"}},"Zásoba"):h("div"),
           h("div",{style:{fontSize:"12px",color:"#C7C7CC"}},p.category)),
         isArchived&&p.archivedDate&&h("div",{style:{fontSize:"11px",color:"#8E8E93",marginTop:"2px"}},(p.archivedReason==="used"?"Spotřebováno":"Vyhozeno")+" - "+fmtDate(p.archivedDate)))),
     open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
@@ -231,7 +231,10 @@ function FormSheet({form,setForm,onSave,onClose,isEdit}){
           h(FI,{label:"Cena (Kč)",type:"number",value:form.purchasePrice,onChange:v=>set("purchasePrice",v),ph:"0"})),
         h(Sec,{title:"Batch kód"},h(BatchDecoder,{form,setForm})),
         h(Sec,{title:"Otevření a expirace"},
-          h(FI,{label:"Datum otevření",type:"date",value:form.openedDate,onChange:v=>set("openedDate",v)}),
+          h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},
+          h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Datum otevření"),
+          h("input",{type:"date",value:form.openedDate||"",onChange:e=>set("openedDate",e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}}),
+          form.openedDate&&h("button",{onClick:()=>set("openedDate",""),style:{marginLeft:"8px",background:"transparent",border:"none",color:"#FF3B30",fontSize:"13px",cursor:"pointer",flexShrink:0,padding:"0 4px"}},"✕")),
           h(FI,{label:"PAO (měsíce)",type:"number",value:form.paoMonths,onChange:v=>set("paoMonths",v),ph:"12"}),
           h(FI,{label:"Fixní expirace",type:"date",value:form.expiryDate,onChange:v=>set("expiryDate",v)}),
           computedExpiry&&h("div",{style:{padding:"6px 16px",fontSize:"13px",color:"#34C759",fontWeight:500}},"Vypočítaná expirace: "+computedExpiry)),
@@ -279,8 +282,9 @@ function App(){
   const expired=enriched.filter(p=>p._days!==null&&p._days<0);
   const archEnr=enrich(archived).filter(match);
   const active=enriched.filter(p=>!soon.includes(p)&&!expired.includes(p));
-  const displayed=tab==="all"?[...expired,...soon,...active]:tab==="soon"?soon:tab==="expired"?expired:tab==="archived"?archEnr:[];
-  const tabs=[{id:"all",label:"Vše",count:enriched.length},{id:"soon",label:"Brzy",count:soon.length},{id:"expired",label:"Expirováno",count:expired.length},{id:"archived",label:"Archiv",count:archEnr.length},{id:"shopping",label:"Nákup",count:shopping.filter(s=>!s.bought).length}];
+  const displayed=tab==="all"?[...expired,...soon,...active]:tab==="soon"?soon:tab==="expired"?expired:tab==="stock"?stock:tab==="archived"?archEnr:[];
+  const stock=enriched.filter(p=>!p.openedDate);
+  const tabs=[{id:"all",label:"Vše",count:enriched.length},{id:"soon",label:"Brzy",count:soon.length},{id:"expired",label:"Expirováno",count:expired.length},{id:"stock",label:"Zásoba",count:stock.length},{id:"archived",label:"Archiv",count:archEnr.length},{id:"shopping",label:"Nákup",count:shopping.filter(s=>!s.bought).length}];
 
   return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
     h("div",{style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
@@ -296,7 +300,7 @@ function App(){
       h(React.Fragment,null,
         displayed.length===0&&h("div",{style:{textAlign:"center",padding:"64px 16px",color:"#8E8E93"}},
           h("div",{style:{fontSize:"44px",marginBottom:"10px"}},"✨"),
-          h("div",{style:{fontSize:"15px"}},tab==="all"?"Žádné produkty":tab==="soon"?"Nic brzy neexpiruje":tab==="expired"?"Žádné expirované":"Archiv je prázdný"),
+          h("div",{style:{fontSize:"15px"}},tab==="all"?"Žádné produkty":tab==="soon"?"Nic brzy neexpiruje":tab==="expired"?"Žádné expirované":tab==="stock"?"Žádné zásoby":"Archiv je prázdný"),
           tab==="all"&&h("button",{onClick:openAdd,style:{marginTop:"16px",background:"#000",color:"#fff",border:"none",padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600}},"Přidat první produkt")),
         displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>{if(tab==="archived"){editArchived(p);}else{openEdit(p);}},onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"}),onDuplicate:()=>duplicateProd(p)})))),
     showBuyPrompt&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
