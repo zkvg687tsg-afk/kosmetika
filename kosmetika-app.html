@@ -68,9 +68,15 @@ async function deleteProductFromAirtable(token,atId){
   }catch{}
 }
 
-async function archiveProductInAirtable(token,atId,name,reason){
+async function archiveProductInAirtable(token,atId,name,reason,archivedDate){
   try{
-    await fetch(WORKER_URL+"/archive",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({atId,name,reason})});
+    await fetch(WORKER_URL+"/archive",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({atId,name,reason,archivedDate})});
+  }catch{}
+}
+
+async function updateArchiveInAirtable(token,atId,p){
+  try{
+    await fetch(WORKER_URL+"/archive/"+atId,{method:"PATCH",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(p)});
   }catch{}
 }
 
@@ -371,7 +377,7 @@ function App(){
   const saveShop=list=>{setShopping(list);saveKey("cos-v2-shopping",list);};
   const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
   const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
-  const handleSave=async()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{const p=products.find(x=>x.id===editId);if(p&&p._atId)updateProductInAirtable(token,p._atId,{...form,id:editId});saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const newProd={...form,id};const atId=await addProductToAirtable(token,newProd);if(atId)newProd._atId=atId;saveProds([...products,newProd]);}setShowForm(false);};
+  const handleSave=async()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){const pa=archived.find(x=>x.id===editId);if(pa&&pa._atId)updateArchiveInAirtable(token,pa._atId,{...form,id:editId});saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{const p=products.find(x=>x.id===editId);if(p&&p._atId)updateProductInAirtable(token,p._atId,{...form,id:editId});saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const newProd={...form,id};const atId=await addProductToAirtable(token,newProd);if(atId)newProd._atId=atId;saveProds([...products,newProd]);}setShowForm(false);};
   const duplicateProd=p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};saveProds([...products,dup]);};
   const [showBuyPrompt,setShowBuyPrompt]=useState(null);
   const addToShopping=(p)=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const item={id,name:p.name,brand:p.brand,photoUrl:p.photoUrl,photoData:p.photoData,addedDate:new Date().toISOString(),bought:false};saveShop([...shopping,item]);};
@@ -380,7 +386,7 @@ function App(){
   const clearBought=()=>saveShop(shopping.filter(s=>!s.bought));
   const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
   const [showArchiveEdit,setShowArchiveEdit]=useState(false);
-  const archiveProd=(p,reason)=>{if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString().slice(0,10)}]);setShowBuyPrompt(p);};
+  const archiveProd=(p,reason)=>{const date=new Date().toISOString().slice(0,10);if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason,date);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:date}]);setShowBuyPrompt(p);};
   const deleteProd=id=>{const p=products.find(x=>x.id===id);if(p&&p._atId)deleteProductFromAirtable(token,p._atId);saveProds(products.filter(p=>p.id!==id));};
   const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
   const pasteImport=data=>{saveProds(data.products);saveArch(data.archived||[]);if(data.shopping)saveShop(data.shopping);};
