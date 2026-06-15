@@ -280,7 +280,16 @@ function FormSheet({form,setForm,onSave,onClose,isEdit}){
           h(FI,{label:"Fixní expirace",type:"date",value:form.expiryDate,onChange:v=>set("expiryDate",v)}),
           computedExpiry&&h("div",{style:{padding:"6px 16px",fontSize:"13px",color:"#34C759",fontWeight:500}},"Vypočítaná expirace: "+computedExpiry)),
         h(Sec,{title:"Poznámky"},
-          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
+          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})),
+        isEdit&&form.archivedDate!==undefined&&h(Sec,{title:"Archivace"},
+          h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},
+            h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Datum archivace"),
+            h("input",{type:"date",value:form.archivedDate||"",onChange:e=>set("archivedDate",e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}})),
+          h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px"}},
+            h("div",{style:{width:"130px",flexShrink:0,fontSize:"15px",color:"#111"}},"Důvod"),
+            h("select",{value:form.archivedReason||"used",onChange:e=>set("archivedReason",e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}},
+              h("option",{value:"used"},"Spotřebováno"),
+              h("option",{value:"thrown"},"Vyhozeno")))))));
 }
 
 // ── Setup obrazovka ──────────────────────────────────────────────────────────
@@ -371,7 +380,7 @@ function App(){
   const clearBought=()=>saveShop(shopping.filter(s=>!s.bought));
   const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
   const [showArchiveEdit,setShowArchiveEdit]=useState(false);
-  const archiveProd=(p,reason)=>{if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString()}]);setShowBuyPrompt(p);};
+  const archiveProd=(p,reason)=>{if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString().slice(0,10)}]);setShowBuyPrompt(p);};
   const deleteProd=id=>{const p=products.find(x=>x.id===id);if(p&&p._atId)deleteProductFromAirtable(token,p._atId);saveProds(products.filter(p=>p.id!==id));};
   const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
   const pasteImport=data=>{saveProds(data.products);saveArch(data.archived||[]);if(data.shopping)saveShop(data.shopping);};
