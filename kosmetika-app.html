@@ -31,7 +31,6 @@ function expiryColor(days){if(days===null)return null;if(days<0)return"#FF3B30";
 function expiryText(days,exp){if(days===null||!exp)return null;const date=fmtDate(exp);if(days<0)return"Expirováno "+date;if(days===0)return"Expiruje dnes - "+date;if(days<=60)return date+" (za "+days+" dní)";return date;}
 
 // ── Konfigurace ──────────────────────────────────────────────────────────────
-// Worker URL — doplň po nasazení na Cloudflare:
 const WORKER_URL = "https://kosmetika.jh8pww9vgw.workers.dev";
 
 // ── localStorage ─────────────────────────────────────────────────────────────
@@ -42,21 +41,36 @@ function setToken(t){localStorage.setItem("at-token",t);}
 
 // ── API přes Worker ───────────────────────────────────────────────────────────
 async function fetchFromAirtable(token){
-  const url=WORKER_URL||"";
-  if(!url) return {error:"no worker"};
   try{
-    const r=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
+    const r=await fetch(WORKER_URL+"/",{headers:{"Authorization":"Bearer "+token}});
     if(!r.ok) return {error:r.status};
     return await r.json();
   }catch(e){return {error:e.message};}
 }
 
-async function pushToAirtable(token,products,archived,shopping){
-  const url=WORKER_URL||"";
-  if(!url) return;
+async function addProductToAirtable(token,product){
   try{
-    const body=JSON.stringify({products,archived,shopping,updatedAt:new Date().toISOString()});
-    await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body});
+    const r=await fetch(WORKER_URL+"/products",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(product)});
+    const j=await r.json();
+    return j.id||null;
+  }catch{return null;}
+}
+
+async function updateProductInAirtable(token,atId,product){
+  try{
+    await fetch(WORKER_URL+"/products/"+atId,{method:"PATCH",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(product)});
+  }catch{}
+}
+
+async function deleteProductFromAirtable(token,atId){
+  try{
+    await fetch(WORKER_URL+"/products/"+atId,{method:"DELETE",headers:{"Authorization":"Bearer "+token}});
+  }catch{}
+}
+
+async function archiveProductInAirtable(token,atId,name,reason){
+  try{
+    await fetch(WORKER_URL+"/archive",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({atId,name,reason})});
   }catch{}
 }
 
@@ -342,21 +356,12 @@ function App(){
 
   if(!token) return h(SetupScreen,{onSave:handleSetup});
 
-  const saveProds=list=>{
-    setProducts(list);saveKey("cos-v2-products",list);
-    pushToAirtable(token,list,archived,shopping);
-  };
-  const saveArch=list=>{
-    setArchived(list);saveKey("cos-v2-archived",list);
-    pushToAirtable(token,products,list,shopping);
-  };
-  const saveShop=list=>{
-    setShopping(list);saveKey("cos-v2-shopping",list);
-    pushToAirtable(token,products,archived,list);
-  };
+  const saveProds=list=>{setProducts(list);saveKey("cos-v2-products",list);};
+  const saveArch=list=>{setArchived(list);saveKey("cos-v2-archived",list);};
+  const saveShop=list=>{setShopping(list);saveKey("cos-v2-shopping",list);};
   const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
   const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
-  const handleSave=()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);saveProds([...products,{...form,id}]);}setShowForm(false);};
+  const handleSave=async()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{const p=products.find(x=>x.id===editId);if(p&&p._atId)updateProductInAirtable(token,p._atId,{...form,id:editId});saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const newProd={...form,id};const atId=await addProductToAirtable(token,newProd);if(atId)newProd._atId=atId;saveProds([...products,newProd]);}setShowForm(false);};
   const duplicateProd=p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};saveProds([...products,dup]);};
   const [showBuyPrompt,setShowBuyPrompt]=useState(null);
   const addToShopping=(p)=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const item={id,name:p.name,brand:p.brand,photoUrl:p.photoUrl,photoData:p.photoData,addedDate:new Date().toISOString(),bought:false};saveShop([...shopping,item]);};
@@ -365,8 +370,8 @@ function App(){
   const clearBought=()=>saveShop(shopping.filter(s=>!s.bought));
   const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
   const [showArchiveEdit,setShowArchiveEdit]=useState(false);
-  const archiveProd=(p,reason)=>{saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString()}]);setShowBuyPrompt(p);};
-  const deleteProd=id=>{saveProds(products.filter(p=>p.id!==id));};
+  const archiveProd=(p,reason)=>{if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:new Date().toISOString()}]);setShowBuyPrompt(p);};
+  const deleteProd=id=>{const p=products.find(x=>x.id===id);if(p&&p._atId)deleteProductFromAirtable(token,p._atId);saveProds(products.filter(p=>p.id!==id));};
   const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
   const pasteImport=data=>{saveProds(data.products);saveArch(data.archived||[]);if(data.shopping)saveShop(data.shopping);};
 
