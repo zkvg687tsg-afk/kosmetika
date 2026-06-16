@@ -454,6 +454,23 @@ function App(){
     });
   },[token]);
 
+  const refreshData=()=>{
+    setSyncStatus("syncing");
+    fetchFromAirtable(token).then(data=>{
+      if(data&&data.products){
+        setProducts(data.products);
+        setArchived(data.archived||[]);
+        setShopping(data.shopping||[]);
+        saveKey("cos-v2-products",data.products);
+        saveKey("cos-v2-archived",data.archived||[]);
+        saveKey("cos-v2-shopping",data.shopping||[]);
+        setSyncStatus("ok");
+      } else {
+        setSyncStatus("offline");
+      }
+    });
+  };
+
   if(!token) return h(SetupScreen,{onSave:handleSetup});
 
   const saveProds=list=>{setProducts(list);saveKey("cos-v2-products",list);};
@@ -503,6 +520,7 @@ function App(){
           syncStatus==="ok"&&h("div",{style:{fontSize:"11px",color:"#34C759",padding:"2px 7px",background:"rgba(52,199,89,0.1)",borderRadius:"20px"}},"✓ Synced"),
           syncStatus==="offline"&&h("div",{style:{fontSize:"11px",color:"#FF9500",padding:"2px 7px",background:"rgba(255,149,0,0.1)",borderRadius:"20px"}},"⚠ Offline")),
         h("div",{style:{display:"flex",gap:"6px"}},
+          h("button",{onClick:refreshData,style:hdrBtn},"↻"),
           h("button",{onClick:()=>setShowSync(true),style:hdrBtn},"Záloha"),
           h("button",{onClick:openAdd,style:{...hdrBtn,background:"#000",color:"#fff",fontWeight:600,padding:"6px 14px"}},"+ Přidat"))),
       h("input",{value:search,onChange:e=>setSearch(e.target.value),placeholder:"Hledat produkt, značku nebo tag...",style:{width:"100%",padding:"8px 12px",borderRadius:"10px",border:"none",background:"rgba(116,116,128,0.12)",fontSize:"14px",outline:"none",marginBottom:"10px"}}),
