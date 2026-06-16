@@ -68,9 +68,9 @@ async function deleteProductFromAirtable(token,atId){
   }catch{}
 }
 
-async function archiveProductInAirtable(token,atId,name,reason,archivedDate){
+async function archiveProductInAirtable(token,atId,name,reason,archivedDate,photoUrl){
   try{
-    await fetch(WORKER_URL+"/archive",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({atId,name,reason,archivedDate})});
+    await fetch(WORKER_URL+"/archive",{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({atId,name,reason,archivedDate,photoUrl})});
   }catch{}
 }
 
@@ -386,7 +386,7 @@ function App(){
   const clearBought=()=>saveShop(shopping.filter(s=>!s.bought));
   const editArchived=p=>{const updated={...EMPTY,...p};setForm(updated);setEditId(p.id);setShowForm(true);setShowArchiveEdit(true);};
   const [showArchiveEdit,setShowArchiveEdit]=useState(false);
-  const archiveProd=(p,reason)=>{const date=new Date().toISOString().slice(0,10);if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason,date);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:date}]);setShowBuyPrompt(p);};
+  const archiveProd=(p,reason)=>{const date=new Date().toISOString().slice(0,10);if(p._atId)archiveProductInAirtable(token,p._atId,p.name,reason,date,p.photoUrl);saveProds(products.filter(x=>x.id!==p.id));saveArch([...archived,{...p,archivedReason:reason,archivedDate:date}]);setShowBuyPrompt(p);};
   const deleteProd=id=>{const p=products.find(x=>x.id===id);if(p&&p._atId)deleteProductFromAirtable(token,p._atId);saveProds(products.filter(p=>p.id!==id));};
   const deleteArch=id=>{saveArch(archived.filter(p=>p.id!==id));};
   const pasteImport=data=>{saveProds(data.products);saveArch(data.archived||[]);if(data.shopping)saveShop(data.shopping);};
