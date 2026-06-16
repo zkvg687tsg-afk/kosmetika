@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Vánoce">
+<title>Vánoce</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#F2F2F7;color:#111}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+'use strict';
+const {useState,useEffect,createElement:h} = React;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtDate(str){return str?new Date(str).toLocaleDateString("cs-CZ"):null;}
+function daysLeft(date){const now=new Date();now.setHours(0,0,0,0);const t=new Date(date);t.setHours(0,0,0,0);return Math.round((t-now)/86400000);}
+
+// ── Konfigurace ─────────────────────────────────────────────────────────────
+const WORKER_URL = "https://vanoce.jh8pww9vgw.workers.dev";
+
+// ── localStorage ────────────────────────────────────────────────────────────
+// Pozn.: token se ukládá pod stejným klíčem jako appka Kosmetika. Pokud běží
+// na stejné doméně (github.io), token se mezi appkami sdílí automaticky.
+function loadKey(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):[];}catch{return[];}}
+function saveKey(key,data){try{localStorage.setItem(key,JSON.stringify(data));}catch{}}
+function getToken(){return localStorage.getItem("at-token")||"";}
+function setToken(t){localStorage.setItem("at-token",t);}
+
+// ── API přes Worker ──────────────────────────────────────────────────────────
+async function apiList(token){
+  try{
+    const r=await fetch(WORKER_URL+"/",{headers:{"Authorization":"Bearer "+token}});
+    if(!r.ok) return {error:r.status};
+    return await r.json();
+  }catch(e){return {error:e.message};}
+}
+async function apiCreate(token,endpoint,item){
+  try{
+    const r=await fetch(WORKER_URL+"/"+endpoint,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(item)});
+    const j=await r.json();
+    return j.id||null;
+  }catch{return null;}
+}
+async function apiUpdate(token,endpoint,atId,item){
+  try{await fetch(WORKER_URL+"/"+endpoint+"/"+atId,{method:"PATCH",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(item)});}catch{}
+}
+async function apiDelete(token,endpoint,atId){
+  try{await fetch(WORKER_URL+"/"+endpoint+"/"+atId,{method:"DELETE",headers:{"Authorization":"Bearer "+token}});}catch{}
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const GIFT_STATUSES=["Nápad","Objednáno","Doručeno","Zabaleno"];
+const GIFT_STATUS_COLOR={"Nápad":"#8E8E93","Objednáno":"#FF9500","Doručeno":"#007AFF","Zabaleno":"#34C759"};
+const GIFT_NEXT_STATUS={"Nápad":"Objednáno","Objednáno":"Doručeno","Doručeno":"Zabaleno"};
+const EMPTY_GIFT={forWhom:"",name:"",budget:"",price:"",status:"Nápad",store:"",link:"",notes:""};
+const SHOP_CATEGORIES=["Potraviny","Dekorace","Ostatní"];
+const EMPTY_SHOP={name:"",category:"Potraviny",quantity:"1",bought:false,notes:""};
+const EMPTY_TASK={title:"",dueDate:"",done:false,notes:""};
+const hdrBtn={padding:"6px 10px",borderRadius:"8px",border:"none",background:"rgba(116,116,128,0.12)",color:"#111",fontSize:"13px",cursor:"pointer"};
+const cardStyle={background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"};
+
+// ── Malé komponenty ──────────────────────────────────────────────────────────
+function Row({icon,text,muted}){if(!text)return null;return h("div",{style:{display:"flex",alignItems:"flex-start",gap:"4px",fontSize:"12px",color:muted?"#8E8E93":"#555",marginTop:"2px",lineHeight:"1.4"}},icon&&h("span",{style:{fontSize:"11px",marginTop:"1px"}},icon),h("span",{style:{flex:1}},text));}
+function Btn({onClick,label,color}){return h("button",{onClick,style:{flex:1,padding:"10px 4px",background:"transparent",border:"none",cursor:"pointer",fontSize:"12px",color,fontWeight:500}},label);}
+function Sec({title,children}){return h("div",null,h("div",{style:{fontSize:"12px",fontWeight:600,color:"#8E8E93",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"6px",paddingLeft:"4px"}},title),h("div",{style:{background:"#fff",borderRadius:"12px",overflow:"hidden"}},children));}
+function FI({label,type,value,onChange,ph}){return h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},h("div",{style:{width:"110px",flexShrink:0,fontSize:"15px",color:"#111"}},label),h("input",{type:type||"text",value,onChange:e=>onChange(e.target.value),placeholder:ph||"",style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}}));}
+function FS({label,value,onChange,opts}){return h("div",{style:{display:"flex",alignItems:"center",padding:"11px 16px",borderBottom:"0.5px solid rgba(0,0,0,0.08)"}},h("div",{style:{width:"110px",flexShrink:0,fontSize:"15px",color:"#111"}},label),h("select",{value,onChange:e=>onChange(e.target.value),style:{flex:1,border:"none",outline:"none",background:"transparent",fontSize:"15px",color:"#111",textAlign:"right"}},opts.map(o=>h("option",{key:o},o))));}
+function SecLabel({label}){return h("div",{style:{fontSize:"12px",fontWeight:600,color:"#8E8E93",textTransform:"uppercase",letterSpacing:"0.5px",padding:"8px 4px 4px"}},label);}
+function CheckBubble({checked,onClick}){return h("button",{onClick,style:{width:"24px",height:"24px",borderRadius:"50%",border:checked?"none":"2px solid #C7C7CC",background:checked?"#34C759":"transparent",flexShrink:0,marginTop:"1px",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:"13px",padding:0}},checked?"✓":"");}
+function EmptyState({icon,text}){return h("div",{style:{textAlign:"center",padding:"56px 16px",color:"#8E8E93"}},h("div",{style:{fontSize:"40px",marginBottom:"8px"}},icon),h("div",{style:{fontSize:"15px"}},text));}
+
+// ── Dárky ────────────────────────────────────────────────────────────────────
+function GiftCard({gift:g,onEdit,onAdvance,onDelete}){
+  const [open,setOpen]=useState(false);
+  const next=GIFT_NEXT_STATUS[g.status];
+  return h("div",{style:cardStyle},
+    h("div",{style:{padding:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"8px"}},
+        h("div",{style:{flex:1,minWidth:0}},
+          h("div",{style:{fontWeight:600,fontSize:"15px"}},g.name||"Bez názvu"),
+          h("div",{style:{fontSize:"12px",color:"#8E8E93",marginTop:"2px"}},"Pro: "+(g.forWhom||"—"))),
+        h("div",{style:{fontSize:"12px",fontWeight:600,color:GIFT_STATUS_COLOR[g.status]||"#8E8E93",whiteSpace:"nowrap"}},g.status)),
+      (g.price||g.budget)&&h(Row,{icon:"💰",text:[g.price&&g.price+" Kč",g.budget&&"rozpočet "+g.budget+" Kč"].filter(Boolean).join(" · ")}),
+      g.store&&h(Row,{icon:"🏪",text:g.store}),
+      g.link&&h(Row,{icon:"🔗",text:g.link,muted:true}),
+      g.notes&&h(Row,{icon:"📝",text:g.notes,muted:true})),
+    open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex",flexWrap:"wrap"}},
+      h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
+      next&&h(Btn,{onClick:()=>onAdvance(next),label:next,color:"#34C759"}),
+      h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
+}
+
+function GiftFormSheet({form,setForm,onSave,onClose,isEdit}){
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return h("div",{style:{position:"fixed",inset:0,zIndex:100,display:"flex",flexDirection:"column",justifyContent:"flex-end"}},
+    h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"},onClick:onClose}),
+    h("div",{style:{position:"relative",background:"#F2F2F7",borderRadius:"20px 20px 0 0",maxHeight:"90vh",overflowY:"auto"}},
+      h("div",{style:{padding:"10px 0 0",textAlign:"center"}},h("div",{style:{width:"36px",height:"4px",background:"#C7C7CC",borderRadius:"2px",display:"inline-block"}})),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 14px"}},
+        h("button",{onClick:onClose,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px"}},"Zrušit"),
+        h("div",{style:{fontWeight:600,fontSize:"17px"}},isEdit?"Upravit dárek":"Nový dárek"),
+        h("button",{onClick:onSave,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px",fontWeight:600}},"Uložit")),
+      h("div",{style:{padding:"0 16px 48px",display:"flex",flexDirection:"column",gap:"24px"}},
+        h(Sec,{title:"Dárek"},
+          h(FI,{label:"Pro koho *",value:form.forWhom,onChange:v=>set("forWhom",v),ph:"např. Máma"}),
+          h(FI,{label:"Co",value:form.name,onChange:v=>set("name",v),ph:"např. Šátek"}),
+          h(FS,{label:"Stav",value:form.status,onChange:v=>set("status",v),opts:GIFT_STATUSES})),
+        h(Sec,{title:"Cena"},
+          h(FI,{label:"Rozpočet (Kč)",type:"number",value:form.budget,onChange:v=>set("budget",v)}),
+          h(FI,{label:"Cena (Kč)",type:"number",value:form.price,onChange:v=>set("price",v)})),
+        h(Sec,{title:"Detaily"},
+          h(FI,{label:"Obchod",value:form.store,onChange:v=>set("store",v)}),
+          h(FI,{label:"Odkaz",value:form.link,onChange:v=>set("link",v),ph:"https://..."})),
+        h(Sec,{title:"Poznámky"},
+          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
+}
+
+function GiftsTab({gifts,onAddNew,onEdit,onAdvance,onDelete}){
+  const totalBudget=gifts.reduce((s,g)=>s+(parseFloat(g.budget)||0),0);
+  const totalPrice=gifts.reduce((s,g)=>s+(parseFloat(g.price)||0),0);
+  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat dárek"),
+    (totalBudget>0||totalPrice>0)&&h("div",{style:{display:"flex",justifyContent:"space-between",padding:"4px 4px 0",fontSize:"13px",color:"#8E8E93"}},
+      h("span",null,"Rozpočet: "+totalBudget+" Kč"),h("span",null,"Vydáno: "+totalPrice+" Kč")),
+    gifts.length===0&&h(EmptyState,{icon:"🎁",text:"Žádné dárky zatím nejsou naplánované"}),
+    GIFT_STATUSES.map(st=>{
+      const list=gifts.filter(g=>g.status===st);
+      if(list.length===0)return null;
+      return h("div",{key:st,style:{display:"flex",flexDirection:"column",gap:"8px"}},
+        h(SecLabel,{label:st+" ("+list.length+")"}),
+        list.map(g=>h(GiftCard,{key:g._atId,gift:g,onEdit:()=>onEdit(g),onAdvance:s=>onAdvance(g,s),onDelete:()=>onDelete(g)})));
+    }));
+}
+
+// ── Úkoly ────────────────────────────────────────────────────────────────────
+function TaskRow({task:t,onToggle,onEdit,onDelete}){
+  const [open,setOpen]=useState(false);
+  const overdue=t.dueDate&&!t.done&&daysLeft(t.dueDate)<0;
+  return h("div",{style:cardStyle},
+    h("div",{style:{display:"flex",alignItems:"flex-start",padding:"12px",gap:"10px"}},
+      h(CheckBubble,{checked:t.done,onClick:()=>onToggle(t)}),
+      h("div",{style:{flex:1,minWidth:0,cursor:"pointer"},onClick:()=>setOpen(!open)},
+        h("div",{style:{fontSize:"15px",fontWeight:500,textDecoration:t.done?"line-through":"none",color:t.done?"#8E8E93":"#111"}},t.title||"Bez názvu"),
+        t.dueDate&&h("div",{style:{fontSize:"12px",color:overdue?"#FF3B30":"#8E8E93",marginTop:"2px",fontWeight:overdue?600:400}},(overdue?"Po termínu – ":"")+fmtDate(t.dueDate)),
+        t.notes&&h(Row,{icon:"📝",text:t.notes,muted:true}))),
+    open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
+      h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
+      h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
+}
+
+function TaskFormSheet({form,setForm,onSave,onClose,isEdit}){
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return h("div",{style:{position:"fixed",inset:0,zIndex:100,display:"flex",flexDirection:"column",justifyContent:"flex-end"}},
+    h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"},onClick:onClose}),
+    h("div",{style:{position:"relative",background:"#F2F2F7",borderRadius:"20px 20px 0 0",maxHeight:"90vh",overflowY:"auto"}},
+      h("div",{style:{padding:"10px 0 0",textAlign:"center"}},h("div",{style:{width:"36px",height:"4px",background:"#C7C7CC",borderRadius:"2px",display:"inline-block"}})),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 14px"}},
+        h("button",{onClick:onClose,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px"}},"Zrušit"),
+        h("div",{style:{fontWeight:600,fontSize:"17px"}},isEdit?"Upravit úkol":"Nový úkol"),
+        h("button",{onClick:onSave,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px",fontWeight:600}},"Uložit")),
+      h("div",{style:{padding:"0 16px 48px",display:"flex",flexDirection:"column",gap:"24px"}},
+        h(Sec,{title:"Úkol"},
+          h(FI,{label:"Úkol *",value:form.title,onChange:v=>set("title",v),ph:"např. Koupit kapra"}),
+          h(FI,{label:"Termín",type:"date",value:form.dueDate,onChange:v=>set("dueDate",v)})),
+        h(Sec,{title:"Poznámky"},
+          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
+}
+
+function TasksTab({tasks,onAddNew,onToggle,onEdit,onDelete}){
+  const [showDone,setShowDone]=useState(false);
+  const active=tasks.filter(t=>!t.done).sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return -1;return a.dueDate.localeCompare(b.dueDate);});
+  const done=tasks.filter(t=>t.done);
+  const rowProps=t=>({key:t._atId,task:t,onToggle:()=>onToggle(t),onEdit:()=>onEdit(t),onDelete:()=>onDelete(t)});
+  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat úkol"),
+    tasks.length===0&&h(EmptyState,{icon:"✅",text:"Žádné úkoly zatím nejsou"}),
+    active.map(t=>h(TaskRow,rowProps(t))),
+    done.length>0&&h("div",null,
+      h("button",{onClick:()=>setShowDone(!showDone),style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"10px 4px",textAlign:"left",cursor:"pointer"}},(showDone?"▾ ":"▸ ")+"Hotovo ("+done.length+")"),
+      showDone&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},done.map(t=>h(TaskRow,rowProps(t))))));
+}
+
+// ── Nákup Vánoce ─────────────────────────────────────────────────────────────
+function ShopRow({item:s,onToggle,onEdit,onDelete}){
+  const [open,setOpen]=useState(false);
+  return h("div",{style:cardStyle},
+    h("div",{style:{display:"flex",alignItems:"flex-start",padding:"12px",gap:"10px"}},
+      h(CheckBubble,{checked:s.bought,onClick:()=>onToggle(s)}),
+      h("div",{style:{flex:1,minWidth:0,cursor:"pointer"},onClick:()=>setOpen(!open)},
+        h("div",{style:{display:"flex",justifyContent:"space-between",gap:"8px"}},
+          h("div",{style:{fontSize:"15px",fontWeight:500,textDecoration:s.bought?"line-through":"none",color:s.bought?"#8E8E93":"#111"}},s.name||"Bez názvu"),
+          s.quantity&&s.quantity!=="1"&&h("div",{style:{fontSize:"13px",color:"#8E8E93",whiteSpace:"nowrap"}},s.quantity+"×")),
+        s.notes&&h(Row,{icon:"📝",text:s.notes,muted:true}))),
+    open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
+      h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
+      h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
+}
+
+function ShopFormSheet({form,setForm,onSave,onClose,isEdit}){
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return h("div",{style:{position:"fixed",inset:0,zIndex:100,display:"flex",flexDirection:"column",justifyContent:"flex-end"}},
+    h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)"},onClick:onClose}),
+    h("div",{style:{position:"relative",background:"#F2F2F7",borderRadius:"20px 20px 0 0",maxHeight:"90vh",overflowY:"auto"}},
+      h("div",{style:{padding:"10px 0 0",textAlign:"center"}},h("div",{style:{width:"36px",height:"4px",background:"#C7C7CC",borderRadius:"2px",display:"inline-block"}})),
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 14px"}},
+        h("button",{onClick:onClose,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px"}},"Zrušit"),
+        h("div",{style:{fontWeight:600,fontSize:"17px"}},isEdit?"Upravit položku":"Nová položka"),
+        h("button",{onClick:onSave,style:{background:"transparent",border:"none",color:"#007AFF",fontSize:"16px",fontWeight:600}},"Uložit")),
+      h("div",{style:{padding:"0 16px 48px",display:"flex",flexDirection:"column",gap:"24px"}},
+        h(Sec,{title:"Položka"},
+          h(FI,{label:"Položka *",value:form.name,onChange:v=>set("name",v),ph:"např. Kapr"}),
+          h(FS,{label:"Kategorie",value:form.category,onChange:v=>set("category",v),opts:SHOP_CATEGORIES}),
+          h(FI,{label:"Počet",type:"number",value:form.quantity,onChange:v=>set("quantity",v)})),
+        h(Sec,{title:"Poznámky"},
+          h("textarea",{value:form.notes,onChange:e=>set("notes",e.target.value),placeholder:"Poznámky...",rows:3,style:{width:"100%",border:"none",background:"transparent",fontSize:"15px",resize:"none",outline:"none",padding:"10px 16px",color:"#111"}})))));
+}
+
+function ShopTab({shopping,onAddNew,onToggle,onEdit,onDelete}){
+  const [showBought,setShowBought]=useState(false);
+  const bought=shopping.filter(s=>s.bought);
+  const rowProps=s=>({key:s._atId,item:s,onToggle:()=>onToggle(s),onEdit:()=>onEdit(s),onDelete:()=>onDelete(s)});
+  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat položku"),
+    shopping.length===0&&h(EmptyState,{icon:"🛒",text:"Nákupní seznam je prázdný"}),
+    SHOP_CATEGORIES.map(cat=>{
+      const list=shopping.filter(s=>s.category===cat&&!s.bought);
+      if(list.length===0)return null;
+      return h("div",{key:cat,style:{display:"flex",flexDirection:"column",gap:"8px"}},
+        h(SecLabel,{label:cat+" ("+list.length+")"}),
+        list.map(s=>h(ShopRow,rowProps(s))));
+    }),
+    bought.length>0&&h("div",null,
+      h("button",{onClick:()=>setShowBought(!showBought),style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"10px 4px",textAlign:"left",cursor:"pointer"}},(showBought?"▾ ":"▸ ")+"Koupeno ("+bought.length+")"),
+      showBought&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},bought.map(s=>h(ShopRow,rowProps(s))))));
+}
+
+// ── Setup obrazovka ──────────────────────────────────────────────────────────
+function SetupScreen({onSave}){
+  const [val,setVal]=useState("");
+  const [err,setErr]=useState("");
+  const [loading,setLoading]=useState(false);
+  const save=async()=>{
+    const t=val.trim();
+    if(!t){setErr("Zadej token.");return;}
+    setLoading(true);setErr("");
+    const data=await apiList(t);
+    if(data&&data.error){setErr("Token nefunguje ("+data.error+"). Zkontroluj ho a zkus znovu.");setLoading(false);return;}
+    setToken(t);
+    onSave(t,data);
+  };
+  return h("div",{style:{minHeight:"100vh",background:"#F2F2F7",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+    h("div",{style:{background:"#fff",borderRadius:"20px",padding:"32px 24px",width:"100%",maxWidth:"360px",textAlign:"center"}},
+      h("div",{style:{fontSize:"48px",marginBottom:"12px"}},"🎄"),
+      h("div",{style:{fontSize:"22px",fontWeight:700,marginBottom:"8px"}},"Propojit s Airtable"),
+      h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"24px",lineHeight:1.5}},"Zadej svůj Airtable Personal Access Token. Uloží se jen do tohoto zařízení."),
+      h("input",{type:"password",value:val,onChange:e=>setVal(e.target.value),placeholder:"pat...",style:{width:"100%",padding:"12px",borderRadius:"10px",border:"1px solid #E0E0E0",fontSize:"15px",outline:"none",marginBottom:"8px",fontFamily:"monospace"}}),
+      err&&h("div",{style:{fontSize:"13px",color:"#FF3B30",marginBottom:"12px"}},"⚠ "+err),
+      h("button",{onClick:save,disabled:loading,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"12px",padding:"14px",fontSize:"16px",fontWeight:600}},loading?"Připojuji...":"Připojit"),
+      h("div",{style:{fontSize:"12px",color:"#C7C7CC",marginTop:"16px",lineHeight:1.5}},"Token najdeš na airtable.com/create/tokens")));
+}
+
+// ── App ──────────────────────────────────────────────────────────────────────
+function App(){
+  const [token,setTokenState]=useState(()=>getToken());
+  const [gifts,setGifts]=useState(()=>loadKey("xmas-gifts"));
+  const [tasks,setTasks]=useState(()=>loadKey("xmas-tasks"));
+  const [shopping,setShopping]=useState(()=>loadKey("xmas-shopping"));
+  const [tab,setTab]=useState("gifts");
+  const [syncStatus,setSyncStatus]=useState(null);
+  const [showGiftForm,setShowGiftForm]=useState(false);
+  const [giftForm,setGiftForm]=useState(EMPTY_GIFT);
+  const [editGiftId,setEditGiftId]=useState(null);
+  const [showTaskForm,setShowTaskForm]=useState(false);
+  const [taskForm,setTaskForm]=useState(EMPTY_TASK);
+  const [editTaskId,setEditTaskId]=useState(null);
+  const [showShopForm,setShowShopForm]=useState(false);
+  const [shopForm,setShopForm]=useState(EMPTY_SHOP);
+  const [editShopId,setEditShopId]=useState(null);
+  const [showDel,setShowDel]=useState(null);
+
+  const applyData=data=>{
+    setGifts(data.gifts||[]);setTasks(data.tasks||[]);setShopping(data.shopping||[]);
+    saveKey("xmas-gifts",data.gifts||[]);saveKey("xmas-tasks",data.tasks||[]);saveKey("xmas-shopping",data.shopping||[]);
+  };
+
+  const handleSetup=(t,data)=>{setTokenState(t);if(data&&data.gifts)applyData(data);setSyncStatus("ok");};
+
+  useEffect(()=>{
+    if(!token){setSyncStatus(null);return;}
+    setSyncStatus("syncing");
+    apiList(token).then(data=>{
+      if(data&&!data.error){applyData(data);setSyncStatus("ok");}else{setSyncStatus("offline");}
+    });
+  },[token]);
+
+  const refreshData=()=>{
+    setSyncStatus("syncing");
+    apiList(token).then(data=>{
+      if(data&&!data.error){applyData(data);setSyncStatus("ok");}else{setSyncStatus("offline");}
+    });
+  };
+
+  if(!token) return h(SetupScreen,{onSave:handleSetup});
+
+  // ── Dárky handlers ────────────────────────────────────────────────────────
+  const saveGifts=list=>{setGifts(list);saveKey("xmas-gifts",list);};
+  const openAddGift=()=>{setGiftForm({...EMPTY_GIFT});setEditGiftId(null);setShowGiftForm(true);};
+  const openEditGift=g=>{setGiftForm({...EMPTY_GIFT,...g});setEditGiftId(g._atId);setShowGiftForm(true);};
+  const handleSaveGift=async()=>{
+    if(!giftForm.forWhom.trim()&&!giftForm.name.trim())return;
+    if(editGiftId){apiUpdate(token,"gifts",editGiftId,giftForm);saveGifts(gifts.map(g=>g._atId===editGiftId?{...giftForm,_atId:editGiftId}:g));}
+    else{const atId=await apiCreate(token,"gifts",giftForm);saveGifts([...gifts,{...giftForm,_atId:atId}]);}
+    setShowGiftForm(false);
+  };
+  const advanceGift=(g,status)=>{apiUpdate(token,"gifts",g._atId,{status});saveGifts(gifts.map(x=>x._atId===g._atId?{...x,status}:x));};
+  const deleteGift=g=>{apiDelete(token,"gifts",g._atId);saveGifts(gifts.filter(x=>x._atId!==g._atId));};
+
+  // ── Úkoly handlers ────────────────────────────────────────────────────────
+  const saveTasks=list=>{setTasks(list);saveKey("xmas-tasks",list);};
+  const openAddTask=()=>{setTaskForm({...EMPTY_TASK});setEditTaskId(null);setShowTaskForm(true);};
+  const openEditTask=t=>{setTaskForm({...EMPTY_TASK,...t});setEditTaskId(t._atId);setShowTaskForm(true);};
+  const handleSaveTask=async()=>{
+    if(!taskForm.title.trim())return;
+    if(editTaskId){apiUpdate(token,"tasks",editTaskId,taskForm);saveTasks(tasks.map(t=>t._atId===editTaskId?{...taskForm,_atId:editTaskId}:t));}
+    else{const atId=await apiCreate(token,"tasks",taskForm);saveTasks([...tasks,{...taskForm,_atId:atId}]);}
+    setShowTaskForm(false);
+  };
+  const toggleTask=t=>{const done=!t.done;apiUpdate(token,"tasks",t._atId,{done});saveTasks(tasks.map(x=>x._atId===t._atId?{...x,done}:x));};
+  const deleteTask=t=>{apiDelete(token,"tasks",t._atId);saveTasks(tasks.filter(x=>x._atId!==t._atId));};
+
+  // ── Nákup handlers ────────────────────────────────────────────────────────
+  const saveShop=list=>{setShopping(list);saveKey("xmas-shopping",list);};
+  const openAddShop=()=>{setShopForm({...EMPTY_SHOP});setEditShopId(null);setShowShopForm(true);};
+  const openEditShop=s=>{setShopForm({...EMPTY_SHOP,...s});setEditShopId(s._atId);setShowShopForm(true);};
+  const handleSaveShop=async()=>{
+    if(!shopForm.name.trim())return;
+    if(editShopId){apiUpdate(token,"shopping",editShopId,shopForm);saveShop(shopping.map(s=>s._atId===editShopId?{...shopForm,_atId:editShopId}:s));}
+    else{const atId=await apiCreate(token,"shopping",shopForm);saveShop([...shopping,{...shopForm,_atId:atId}]);}
+    setShowShopForm(false);
+  };
+  const toggleShop=s=>{const bought=!s.bought;apiUpdate(token,"shopping",s._atId,{bought});saveShop(shopping.map(x=>x._atId===s._atId?{...x,bought}:x));};
+  const deleteShop=s=>{apiDelete(token,"shopping",s._atId);saveShop(shopping.filter(x=>x._atId!==s._atId));};
+
+  const giftsPending=gifts.filter(g=>g.status!=="Zabaleno").length;
+  const tasksPending=tasks.filter(t=>!t.done).length;
+  const shopPending=shopping.filter(s=>!s.bought).length;
+  const tabs=[{id:"gifts",label:"Dárky",count:giftsPending},{id:"tasks",label:"Úkoly",count:tasksPending},{id:"shopping",label:"Nákup",count:shopPending}];
+  const onAdd=tab==="gifts"?openAddGift:tab==="tasks"?openAddTask:openAddShop;
+
+  return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
+    h("div",{style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
+      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
+        h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
+          h("div",{style:{fontSize:"22px",fontWeight:700,letterSpacing:"-0.5px"}},"🎄 Vánoce"),
+          syncStatus==="syncing"&&h("div",{style:{fontSize:"11px",color:"#8E8E93",padding:"2px 7px",background:"rgba(116,116,128,0.1)",borderRadius:"20px"}},"⏳ Načítám"),
+          syncStatus==="ok"&&h("div",{style:{fontSize:"11px",color:"#34C759",padding:"2px 7px",background:"rgba(52,199,89,0.1)",borderRadius:"20px"}},"✓ Synced"),
+          syncStatus==="offline"&&h("div",{style:{fontSize:"11px",color:"#FF9500",padding:"2px 7px",background:"rgba(255,149,0,0.1)",borderRadius:"20px"}},"⚠ Offline")),
+        h("div",{style:{display:"flex",gap:"6px"}},
+          h("button",{onClick:refreshData,style:hdrBtn},"↻"),
+          h("button",{onClick:onAdd,style:{...hdrBtn,background:"#000",color:"#fff",fontWeight:600,padding:"6px 14px"}},"+ Přidat"))),
+      h("div",{style:{display:"flex",overflowX:"auto"}},tabs.map(t=>h("button",{key:t.id,onClick:()=>setTab(t.id),style:{padding:"8px 14px",border:"none",background:"transparent",color:tab===t.id?"#111":"#8E8E93",borderBottom:tab===t.id?"2px solid #111":"2px solid transparent",fontWeight:tab===t.id?600:400,fontSize:"14px",cursor:"pointer",whiteSpace:"nowrap"}},t.label+(t.count>0?" ("+t.count+")":""))))),
+    h("div",{style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
+      tab==="gifts"&&h(GiftsTab,{gifts,onAddNew:openAddGift,onEdit:openEditGift,onAdvance:advanceGift,onDelete:g=>setShowDel({type:"gift",item:g})}),
+      tab==="tasks"&&h(TasksTab,{tasks,onAddNew:openAddTask,onToggle:toggleTask,onEdit:openEditTask,onDelete:t=>setShowDel({type:"task",item:t})}),
+      tab==="shopping"&&h(ShopTab,{shopping,onAddNew:openAddShop,onToggle:toggleShop,onEdit:openEditShop,onDelete:s=>setShowDel({type:"shop",item:s})})),
+    showGiftForm&&h(GiftFormSheet,{form:giftForm,setForm:setGiftForm,onSave:handleSaveGift,onClose:()=>setShowGiftForm(false),isEdit:!!editGiftId}),
+    showTaskForm&&h(TaskFormSheet,{form:taskForm,setForm:setTaskForm,onSave:handleSaveTask,onClose:()=>setShowTaskForm(false),isEdit:!!editTaskId}),
+    showShopForm&&h(ShopFormSheet,{form:shopForm,setForm:setShopForm,onSave:handleSaveShop,onClose:()=>setShowShopForm(false),isEdit:!!editShopId}),
+    showDel&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)"},onClick:()=>setShowDel(null)}),
+      h("div",{style:{position:"relative",background:"#fff",borderRadius:"16px",padding:"24px",width:"100%",maxWidth:"320px",textAlign:"center"}},
+        h("div",{style:{fontWeight:600,fontSize:"17px",marginBottom:"8px"}},"Smazat?"),
+        h("div",{style:{fontSize:"14px",color:"#8E8E93",marginBottom:"20px"}},"Tato akce je nevratná."),
+        h("div",{style:{display:"flex",gap:"8px"}},
+          h("button",{onClick:()=>setShowDel(null),style:{flex:1,background:"#F2F2F7",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Zrušit"),
+          h("button",{onClick:()=>{if(showDel.type==="gift")deleteGift(showDel.item);else if(showDel.type==="task")deleteTask(showDel.item);else deleteShop(showDel.item);setShowDel(null);},style:{flex:1,background:"#FF3B30",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"Smazat")))));
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+</script>
+</body>
+</html>
