@@ -63,7 +63,7 @@ async function apiDelete(token,endpoint,atId){
 const GIFT_STATUSES=["Nápad","Objednáno","Doručeno","Zabaleno"];
 const GIFT_STATUS_COLOR={"Nápad":"#8E8E93","Objednáno":"#FF9500","Doručeno":"#007AFF","Zabaleno":"#34C759"};
 const GIFT_NEXT_STATUS={"Nápad":"Objednáno","Objednáno":"Doručeno","Doručeno":"Zabaleno"};
-const EMPTY_GIFT={forWhom:"",name:"",budget:"",price:"",status:"Nápad",store:"",link:"",notes:""};
+const EMPTY_GIFT={forWhom:"",name:"",budget:"",price:"",status:"Nápad",store:"",link:"",notes:"",photoUrl:""};
 const SHOP_CATEGORIES=["Potraviny","Dekorace","Ostatní"];
 const EMPTY_SHOP={name:"",category:"Potraviny",quantity:"1",bought:false,notes:""};
 const EMPTY_TASK={title:"",dueDate:"",done:false,notes:""};
@@ -83,18 +83,24 @@ function EmptyState({icon,text}){return h("div",{style:{textAlign:"center",paddi
 // ── Dárky ────────────────────────────────────────────────────────────────────
 function GiftCard({gift:g,onEdit,onAdvance,onDelete}){
   const [open,setOpen]=useState(false);
+  const [lightbox,setLightbox]=useState(false);
   const next=GIFT_NEXT_STATUS[g.status];
   return h("div",{style:cardStyle},
-    h("div",{style:{padding:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
-      h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"8px"}},
-        h("div",{style:{flex:1,minWidth:0}},
-          h("div",{style:{fontWeight:600,fontSize:"15px"}},g.name||"Bez názvu"),
-          h("div",{style:{fontSize:"12px",color:"#8E8E93",marginTop:"2px"}},"Pro: "+(g.forWhom||"—"))),
-        h("div",{style:{fontSize:"12px",fontWeight:600,color:GIFT_STATUS_COLOR[g.status]||"#8E8E93",whiteSpace:"nowrap"}},g.status)),
-      (g.price||g.budget)&&h(Row,{icon:"💰",text:[g.price&&g.price+" Kč",g.budget&&"rozpočet "+g.budget+" Kč"].filter(Boolean).join(" · ")}),
-      g.store&&h(Row,{icon:"🏪",text:g.store}),
-      g.link&&h(Row,{icon:"🔗",text:g.link,muted:true}),
-      g.notes&&h(Row,{icon:"📝",text:g.notes,muted:true})),
+    lightbox&&g.photoUrl&&h("div",{onClick:()=>setLightbox(false),style:{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
+      h("img",{src:g.photoUrl,alt:"",style:{maxWidth:"100%",maxHeight:"90vh",borderRadius:"12px",objectFit:"contain"}})),
+    h("div",{style:{display:"flex",padding:"12px",gap:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
+      h("div",{style:{width:"52px",height:"52px",borderRadius:"10px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"},onClick:e=>{if(g.photoUrl){e.stopPropagation();setLightbox(true);}}},
+        g.photoUrl?h("img",{src:g.photoUrl,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"24px"}},"🎁")),
+      h("div",{style:{flex:1,minWidth:0}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"8px"}},
+          h("div",{style:{flex:1,minWidth:0}},
+            h("div",{style:{fontWeight:600,fontSize:"15px"}},g.name||"Bez názvu"),
+            h("div",{style:{fontSize:"12px",color:"#8E8E93",marginTop:"2px"}},"Pro: "+(g.forWhom||"—"))),
+          h("div",{style:{fontSize:"12px",fontWeight:600,color:GIFT_STATUS_COLOR[g.status]||"#8E8E93",whiteSpace:"nowrap"}},g.status)),
+        (g.price||g.budget)&&h(Row,{icon:"💰",text:[g.price&&g.price+" Kč",g.budget&&"rozpočet "+g.budget+" Kč"].filter(Boolean).join(" · ")}),
+        g.store&&h(Row,{icon:"🏪",text:g.store}),
+        g.link&&h(Row,{icon:"🔗",text:g.link,muted:true}),
+        g.notes&&h(Row,{icon:"📝",text:g.notes,muted:true}))),
     open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex",flexWrap:"wrap"}},
       h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
       next&&h(Btn,{onClick:()=>onAdvance(next),label:next,color:"#34C759"}),
@@ -115,7 +121,8 @@ function GiftFormSheet({form,setForm,onSave,onClose,isEdit}){
         h(Sec,{title:"Dárek"},
           h(FI,{label:"Pro koho *",value:form.forWhom,onChange:v=>set("forWhom",v),ph:"např. Máma"}),
           h(FI,{label:"Co",value:form.name,onChange:v=>set("name",v),ph:"např. Šátek"}),
-          h(FS,{label:"Stav",value:form.status,onChange:v=>set("status",v),opts:GIFT_STATUSES})),
+          h(FS,{label:"Stav",value:form.status,onChange:v=>set("status",v),opts:GIFT_STATUSES}),
+          h(FI,{label:"Foto URL",value:form.photoUrl,onChange:v=>set("photoUrl",v),ph:"https://..."})),
         h(Sec,{title:"Cena"},
           h(FI,{label:"Rozpočet (Kč)",type:"number",value:form.budget,onChange:v=>set("budget",v)}),
           h(FI,{label:"Cena (Kč)",type:"number",value:form.price,onChange:v=>set("price",v)})),
