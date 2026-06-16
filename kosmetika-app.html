@@ -189,7 +189,7 @@ function Card({product:p,isArchived,onEdit,onArchive,onDelete,onDuplicate}){
         isArchived&&p.archivedDate&&h("div",{style:{fontSize:"11px",color:"#8E8E93",marginTop:"2px"}},(p.archivedReason==="used"?"Spotřebováno":"Vyhozeno")+" - "+fmtDate(p.archivedDate)))),
     open&&h("div",{style:{borderTop:"0.5px solid #F2F2F7",display:"flex"}},
       !isArchived&&h(React.Fragment,null,h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),h(Btn,{onClick:onDuplicate,label:"Duplikovat",color:"#5856D6"}),h(Btn,{onClick:()=>onArchive("used"),label:"Spotřebováno",color:"#34C759"}),h(Btn,{onClick:()=>onArchive("thrown"),label:"Vyhodit",color:"#FF9500"})),
-      isArchived&&h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),
+      isArchived&&h(React.Fragment,null,h(Btn,{onClick:onEdit,label:"Upravit",color:"#007AFF"}),h(Btn,{onClick:onDuplicate,label:"Duplikovat",color:"#5856D6"})),
       h(Btn,{onClick:onDelete,label:"Smazat",color:"#FF3B30"})));
 }
 
@@ -462,7 +462,8 @@ function App(){
   const openAdd=()=>{setForm({...EMPTY});setEditId(null);setShowForm(true);};
   const openEdit=p=>{setForm({...EMPTY,...p});setEditId(p.id);setShowForm(true);};
   const handleSave=async()=>{if(!form.name.trim())return;if(editId){if(showArchiveEdit){const pa=archived.find(x=>x.id===editId);if(pa&&pa._atId)updateArchiveInAirtable(token,pa._atId,{...form,id:editId});saveArch(archived.map(p=>p.id===editId?{...p,...form,id:editId}:p));setShowArchiveEdit(false);}else{const p=products.find(x=>x.id===editId);if(p&&p._atId)updateProductInAirtable(token,p._atId,{...form,id:editId});saveProds(products.map(p=>p.id===editId?{...form,id:editId}:p));}}else{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const newProd={...form,id};const atId=await addProductToAirtable(token,newProd);if(atId)newProd._atId=atId;saveProds([...products,newProd]);}setShowForm(false);};
-  const duplicateProd=p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};saveProds([...products,dup]);};
+  const duplicateProd=async p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...p,id,name:p.name+" (kopie)",openedDate:"",manufacturingDate:""};delete dup._atId;const atId=await addProductToAirtable(token,dup);if(atId)dup._atId=atId;saveProds([...products,dup]);};
+  const duplicateArchived=async p=>{const id=Math.random().toString(36).slice(2)+Date.now().toString(36);const dup={...EMPTY,id,name:p.name,photoUrl:p.photoUrl||""};const atId=await addProductToAirtable(token,dup);if(atId)dup._atId=atId;saveProds([...products,dup]);};
   const [showBuyPrompt,setShowBuyPrompt]=useState(null);
   const addToShopping=async(p)=>{const item={name:p.name,brand:p.brand||"",category:guessOrderCategory(p.category),photoUrl:p.photoUrl||"",status:"Na seznamu"};const atId=await createOrderInAirtable(token,item);saveShop([...shopping,{...item,_atId:atId}]);};
   const openAddOrder=()=>{setOrderForm({...EMPTY_ORDER});setEditOrderId(null);setOrderTargetStatus(null);setShowOrderForm(true);};
@@ -513,7 +514,7 @@ function App(){
           h("div",{style:{fontSize:"44px",marginBottom:"10px"}},"✨"),
           h("div",{style:{fontSize:"15px"}},tab==="all"?"Žádné produkty":tab==="soon"?"Nic brzy neexpiruje":tab==="expired"?"Žádné expirované":tab==="stock"?"Žádné zásoby":"Archiv je prázdný"),
           tab==="all"&&h("button",{onClick:openAdd,style:{marginTop:"16px",background:"#000",color:"#fff",border:"none",padding:"10px 22px",borderRadius:"10px",fontSize:"14px",fontWeight:600}},"Přidat první produkt")),
-        displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>{if(tab==="archived"){editArchived(p);}else{openEdit(p);}},onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"}),onDuplicate:()=>duplicateProd(p)})))),
+        displayed.map(p=>h(Card,{key:p.id,product:p,isArchived:tab==="archived",onEdit:()=>{if(tab==="archived"){editArchived(p);}else{openEdit(p);}},onArchive:reason=>archiveProd(p,reason),onDelete:()=>setShowDel({id:p.id,isArchived:tab==="archived"}),onDuplicate:()=>{if(tab==="archived"){duplicateArchived(p);}else{duplicateProd(p);}}})))),
     showBuyPrompt&&h("div",{style:{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
       h("div",{style:{position:"absolute",inset:0,background:"rgba(0,0,0,0.4)"},onClick:()=>setShowBuyPrompt(null)}),
       h("div",{style:{position:"relative",background:"#fff",borderRadius:"16px",padding:"24px",width:"100%",maxWidth:"320px",textAlign:"center"}},
