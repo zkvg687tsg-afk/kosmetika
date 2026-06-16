@@ -129,7 +129,7 @@ function decodeBatch(brand,code){const c=(code||"").trim();if(!c)return null;if(
 const CATEGORIES=["Péče o pleť","Makeup","Parfém","Vlasová péče","Tělo","Ostatní"];
 const EMPTY={name:"",brand:"",category:"Péče o pleť",photoUrl:"",photoData:"",tags:"",ean:"",purchaseDate:"",purchasePrice:"",quantity:"1",batchCode:"",manufacturingDate:"",openedDate:"",paoMonths:"",expiryDate:"",notes:""};
 const ORDER_CATEGORIES=["Pleť","Tělová péče","Vlasy","Hygiena","Líčení"];
-const ORDER_STORES=["Notino","Alza","Benu","Ulta","Jiné"];
+const ORDER_STORES=["Notino","Alza","Benu","Ulta","Vivantis","Douglas","Fann","Sephora","Jiné"];
 const EMPTY_ORDER={name:"",brand:"",category:"Pleť",store:"Notino",orderGroup:"",orderDate:"",quantity:"1",price:"",link:"",photoUrl:"",notes:"",status:"Na seznamu"};
 const ORDER_STATUS_COLOR={"Na seznamu":"#8E8E93","Objednáno":"#FF9500","Doručeno":"#007AFF","Přidáno do zásob":"#34C759","Vráceno":"#FF3B30","Reklamace":"#FF3B30"};
 function mapOrderCategoryToKos(cat){return cat==="Pleť"?"Pleťová péče":(cat||"Pleťová péče");}
