@@ -12,6 +12,14 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#F2F2F7;color:#111}
 button{cursor:pointer;font-family:inherit}
 input,select,textarea{font-family:inherit}
+.print-only{display:none}
+@media print{
+  .no-print{display:none!important}
+  .print-only{display:block!important}
+  body{background:#fff!important}
+  .print-area{padding:0!important;max-width:100%!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
 </style>
 </head>
 <body>
@@ -137,7 +145,7 @@ function GiftsTab({gifts,onAddNew,onEdit,onAdvance,onDelete}){
   const totalBudget=gifts.reduce((s,g)=>s+(parseFloat(g.budget)||0),0);
   const totalPrice=gifts.reduce((s,g)=>s+(parseFloat(g.price)||0),0);
   return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
-    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat dárek"),
+    h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat dárek"),
     (totalBudget>0||totalPrice>0)&&h("div",{style:{display:"flex",justifyContent:"space-between",padding:"4px 4px 0",fontSize:"13px",color:"#8E8E93"}},
       h("span",null,"Rozpočet: "+totalBudget+" Kč"),h("span",null,"Vydáno: "+totalPrice+" Kč")),
     gifts.length===0&&h(EmptyState,{icon:"🎁",text:"Žádné dárky zatím nejsou naplánované"}),
@@ -190,7 +198,7 @@ function TasksTab({tasks,onAddNew,onToggle,onEdit,onDelete}){
   const done=tasks.filter(t=>t.done);
   const rowProps=t=>({key:t._atId,task:t,onToggle:()=>onToggle(t),onEdit:()=>onEdit(t),onDelete:()=>onDelete(t)});
   return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
-    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat úkol"),
+    h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat úkol"),
     tasks.length===0&&h(EmptyState,{icon:"✅",text:"Žádné úkoly zatím nejsou"}),
     active.map(t=>h(TaskRow,rowProps(t))),
     done.length>0&&h("div",null,
@@ -238,7 +246,7 @@ function ShopTab({shopping,onAddNew,onToggle,onEdit,onDelete}){
   const bought=shopping.filter(s=>s.bought);
   const rowProps=s=>({key:s._atId,item:s,onToggle:()=>onToggle(s),onEdit:()=>onEdit(s),onDelete:()=>onDelete(s)});
   return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
-    h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat položku"),
+    h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat položku"),
     shopping.length===0&&h(EmptyState,{icon:"🛒",text:"Nákupní seznam je prázdný"}),
     SHOP_CATEGORIES.map(cat=>{
       const list=shopping.filter(s=>s.category===cat&&!s.bought);
@@ -366,7 +374,7 @@ function App(){
   const onAdd=tab==="gifts"?openAddGift:tab==="tasks"?openAddTask:openAddShop;
 
   return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
-    h("div",{style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
+    h("div",{className:"no-print",style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
         h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
           h("div",{style:{fontSize:"22px",fontWeight:700,letterSpacing:"-0.5px"}},"🎄 Vánoce"),
@@ -374,10 +382,14 @@ function App(){
           syncStatus==="ok"&&h("div",{style:{fontSize:"11px",color:"#34C759",padding:"2px 7px",background:"rgba(52,199,89,0.1)",borderRadius:"20px"}},"✓ Synced"),
           syncStatus==="offline"&&h("div",{style:{fontSize:"11px",color:"#FF9500",padding:"2px 7px",background:"rgba(255,149,0,0.1)",borderRadius:"20px"}},"⚠ Offline")),
         h("div",{style:{display:"flex",gap:"6px"}},
+          h("button",{onClick:()=>window.print(),style:hdrBtn},"🖨️"),
           h("button",{onClick:refreshData,style:hdrBtn},"↻"),
           h("button",{onClick:onAdd,style:{...hdrBtn,background:"#000",color:"#fff",fontWeight:600,padding:"6px 14px"}},"+ Přidat"))),
       h("div",{style:{display:"flex",overflowX:"auto"}},tabs.map(t=>h("button",{key:t.id,onClick:()=>setTab(t.id),style:{padding:"8px 14px",border:"none",background:"transparent",color:tab===t.id?"#111":"#8E8E93",borderBottom:tab===t.id?"2px solid #111":"2px solid transparent",fontWeight:tab===t.id?600:400,fontSize:"14px",cursor:"pointer",whiteSpace:"nowrap"}},t.label+(t.count>0?" ("+t.count+")":""))))),
-    h("div",{style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
+    h("div",{className:"print-only",style:{padding:"0 16px",marginBottom:"8px"}},
+      h("div",{style:{fontSize:"20px",fontWeight:700}},"🎄 Vánoce — "+(tabs.find(t=>t.id===tab)||{}).label),
+      h("div",{style:{fontSize:"12px",color:"#8E8E93"}},new Date().toLocaleDateString("cs-CZ"))),
+    h("div",{className:"print-area",style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
       tab==="gifts"&&h(GiftsTab,{gifts,onAddNew:openAddGift,onEdit:openEditGift,onAdvance:advanceGift,onDelete:g=>setShowDel({type:"gift",item:g})}),
       tab==="tasks"&&h(TasksTab,{tasks,onAddNew:openAddTask,onToggle:toggleTask,onEdit:openEditTask,onDelete:t=>setShowDel({type:"task",item:t})}),
       tab==="shopping"&&h(ShopTab,{shopping,onAddNew:openAddShop,onToggle:toggleShop,onEdit:openEditShop,onDelete:s=>setShowDel({type:"shop",item:s})})),
