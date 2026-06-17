@@ -16,9 +16,8 @@ input,select,textarea{font-family:inherit}
 @media print{
   .no-print{display:none!important}
   .print-only{display:block!important}
-  body{background:#fff!important}
+  html,body,.app-shell{background:#fff!important}
   .print-area{padding:0!important;max-width:100%!important}
-  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 </style>
 </head>
@@ -178,7 +177,7 @@ function Card({product:p,isArchived,onEdit,onArchive,onDelete,onDuplicate}){
   const expiryStr=expiryText(p._days,p._exp);
   const tags=(p.tags||"").split(",").map(t=>t.trim()).filter(Boolean);
   const imgSrc=p.photoData||p.photoUrl||null;
-  return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}},
+  return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",breakInside:"avoid",pageBreakInside:"avoid"}},
     lightbox&&imgSrc&&h("div",{onClick:()=>setLightbox(false),style:{position:"fixed",inset:0,zIndex:300,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px"}},
       h("img",{src:imgSrc,alt:"",style:{maxWidth:"100%",maxHeight:"90vh",borderRadius:"12px",objectFit:"contain"}})),
     h("div",{style:{display:"flex",padding:"12px",gap:"12px",cursor:"pointer"},onClick:()=>setOpen(!open)},
@@ -207,7 +206,7 @@ function OBtn({onClick,label,color}){return h("button",{onClick,style:{flex:"1 1
 
 function OrderCard({order:o,onEdit,onDelete,onOrder,onDeliver,onToStock,onReturn,onClaim}){
   const imgSrc=o.photoUrl||null;
-  return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"}},
+  return h("div",{style:{background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",breakInside:"avoid",pageBreakInside:"avoid"}},
     h("div",{style:{display:"flex",padding:"12px",gap:"12px"}},
       h("div",{style:{width:"48px",height:"48px",borderRadius:"10px",background:"#F2F2F7",flexShrink:0,overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}},
         imgSrc?h("img",{src:imgSrc,alt:"",style:{width:"100%",height:"100%",objectFit:"cover"},onError:e=>e.target.style.display="none"}):h("span",{style:{fontSize:"22px"}},"🛍")),
@@ -519,7 +518,7 @@ function App(){
   const displayed=tab==="all"?[...expired,...soon,...active]:tab==="soon"?soon:tab==="expired"?expired:tab==="stock"?stock:tab==="archived"?archEnr:[];
   const tabs=[{id:"all",label:"Vše",count:enriched.length},{id:"soon",label:"Brzy",count:soon.length},{id:"expired",label:"Expirováno",count:expired.length},{id:"stock",label:"Zásoba",count:stock.length},{id:"archived",label:"Archiv",count:archEnr.length},{id:"shopping",label:"Nákup",count:shopping.filter(s=>["Na seznamu","Objednáno","Doručeno"].includes(s.status)).length}];
 
-  return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
+  return h("div",{className:"app-shell",style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
     h("div",{className:"no-print",style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
         h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
