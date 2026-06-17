@@ -16,9 +16,8 @@ input,select,textarea{font-family:inherit}
 @media print{
   .no-print{display:none!important}
   .print-only{display:block!important}
-  body{background:#fff!important}
+  html,body,.app-shell{background:#fff!important}
   .print-area{padding:0!important;max-width:100%!important}
-  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
 </style>
 </head>
@@ -76,7 +75,7 @@ const SHOP_CATEGORIES=["Potraviny","Dekorace","Ostatní"];
 const EMPTY_SHOP={name:"",category:"Potraviny",quantity:"1",bought:false,notes:""};
 const EMPTY_TASK={title:"",dueDate:"",done:false,notes:""};
 const hdrBtn={padding:"6px 10px",borderRadius:"8px",border:"none",background:"rgba(116,116,128,0.12)",color:"#111",fontSize:"13px",cursor:"pointer"};
-const cardStyle={background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)"};
+const cardStyle={background:"#fff",borderRadius:"13px",overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.07)",breakInside:"avoid",pageBreakInside:"avoid"};
 
 // ── Malé komponenty ──────────────────────────────────────────────────────────
 function Row({icon,text,muted}){if(!text)return null;return h("div",{style:{display:"flex",alignItems:"flex-start",gap:"4px",fontSize:"12px",color:muted?"#8E8E93":"#555",marginTop:"2px",lineHeight:"1.4"}},icon&&h("span",{style:{fontSize:"11px",marginTop:"1px"}},icon),h("span",{style:{flex:1}},text));}
@@ -373,7 +372,7 @@ function App(){
   const tabs=[{id:"gifts",label:"Dárky",count:giftsPending},{id:"tasks",label:"Úkoly",count:tasksPending},{id:"shopping",label:"Nákup",count:shopPending}];
   const onAdd=tab==="gifts"?openAddGift:tab==="tasks"?openAddTask:openAddShop;
 
-  return h("div",{style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
+  return h("div",{className:"app-shell",style:{background:"#F2F2F7",minHeight:"100vh",maxWidth:"600px",margin:"0 auto"}},
     h("div",{className:"no-print",style:{background:"#fff",borderBottom:"0.5px solid rgba(0,0,0,0.15)",padding:"16px 16px 0",position:"sticky",top:0,zIndex:50}},
       h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}},
         h("div",{style:{display:"flex",alignItems:"center",gap:"8px"}},
