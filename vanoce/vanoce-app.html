@@ -18,6 +18,8 @@ input,select,textarea{font-family:inherit}
   .print-only{display:block!important}
   html,body,.app-shell{background:#fff!important}
   .print-area{padding:0!important;max-width:100%!important}
+  .print-list{display:block!important}
+  .print-list>*{margin-bottom:8px}
 }
 </style>
 </head>
@@ -143,7 +145,7 @@ function GiftFormSheet({form,setForm,onSave,onClose,isEdit}){
 function GiftsTab({gifts,onAddNew,onEdit,onAdvance,onDelete}){
   const totalBudget=gifts.reduce((s,g)=>s+(parseFloat(g.budget)||0),0);
   const totalPrice=gifts.reduce((s,g)=>s+(parseFloat(g.price)||0),0);
-  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+  return h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
     h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat dárek"),
     (totalBudget>0||totalPrice>0)&&h("div",{style:{display:"flex",justifyContent:"space-between",padding:"4px 4px 0",fontSize:"13px",color:"#8E8E93"}},
       h("span",null,"Rozpočet: "+totalBudget+" Kč"),h("span",null,"Vydáno: "+totalPrice+" Kč")),
@@ -151,7 +153,7 @@ function GiftsTab({gifts,onAddNew,onEdit,onAdvance,onDelete}){
     GIFT_STATUSES.map(st=>{
       const list=gifts.filter(g=>g.status===st);
       if(list.length===0)return null;
-      return h("div",{key:st,style:{display:"flex",flexDirection:"column",gap:"8px"}},
+      return h("div",{key:st,className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
         h(SecLabel,{label:st+" ("+list.length+")"}),
         list.map(g=>h(GiftCard,{key:g._atId,gift:g,onEdit:()=>onEdit(g),onAdvance:s=>onAdvance(g,s),onDelete:()=>onDelete(g)})));
     }));
@@ -196,13 +198,13 @@ function TasksTab({tasks,onAddNew,onToggle,onEdit,onDelete}){
   const active=tasks.filter(t=>!t.done).sort((a,b)=>{if(!a.dueDate)return 1;if(!b.dueDate)return -1;return a.dueDate.localeCompare(b.dueDate);});
   const done=tasks.filter(t=>t.done);
   const rowProps=t=>({key:t._atId,task:t,onToggle:()=>onToggle(t),onEdit:()=>onEdit(t),onDelete:()=>onDelete(t)});
-  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+  return h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
     h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat úkol"),
     tasks.length===0&&h(EmptyState,{icon:"✅",text:"Žádné úkoly zatím nejsou"}),
     active.map(t=>h(TaskRow,rowProps(t))),
     done.length>0&&h("div",null,
       h("button",{onClick:()=>setShowDone(!showDone),style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"10px 4px",textAlign:"left",cursor:"pointer"}},(showDone?"▾ ":"▸ ")+"Hotovo ("+done.length+")"),
-      showDone&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},done.map(t=>h(TaskRow,rowProps(t))))));
+      showDone&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},done.map(t=>h(TaskRow,rowProps(t))))));
 }
 
 // ── Nákup Vánoce ─────────────────────────────────────────────────────────────
@@ -244,19 +246,19 @@ function ShopTab({shopping,onAddNew,onToggle,onEdit,onDelete}){
   const [showBought,setShowBought]=useState(false);
   const bought=shopping.filter(s=>s.bought);
   const rowProps=s=>({key:s._atId,item:s,onToggle:()=>onToggle(s),onEdit:()=>onEdit(s),onDelete:()=>onDelete(s)});
-  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+  return h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
     h("button",{className:"no-print",onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Přidat položku"),
     shopping.length===0&&h(EmptyState,{icon:"🛒",text:"Nákupní seznam je prázdný"}),
     SHOP_CATEGORIES.map(cat=>{
       const list=shopping.filter(s=>s.category===cat&&!s.bought);
       if(list.length===0)return null;
-      return h("div",{key:cat,style:{display:"flex",flexDirection:"column",gap:"8px"}},
+      return h("div",{key:cat,className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
         h(SecLabel,{label:cat+" ("+list.length+")"}),
         list.map(s=>h(ShopRow,rowProps(s))));
     }),
     bought.length>0&&h("div",null,
       h("button",{onClick:()=>setShowBought(!showBought),style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"10px 4px",textAlign:"left",cursor:"pointer"}},(showBought?"▾ ":"▸ ")+"Koupeno ("+bought.length+")"),
-      showBought&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},bought.map(s=>h(ShopRow,rowProps(s))))));
+      showBought&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},bought.map(s=>h(ShopRow,rowProps(s))))));
 }
 
 // ── Setup obrazovka ──────────────────────────────────────────────────────────
@@ -388,7 +390,7 @@ function App(){
     h("div",{className:"print-only",style:{padding:"0 16px",marginBottom:"8px"}},
       h("div",{style:{fontSize:"20px",fontWeight:700}},"🎄 Vánoce — "+(tabs.find(t=>t.id===tab)||{}).label),
       h("div",{style:{fontSize:"12px",color:"#8E8E93"}},new Date().toLocaleDateString("cs-CZ"))),
-    h("div",{className:"print-area",style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
+    h("div",{className:"print-area print-list",style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
       tab==="gifts"&&h(GiftsTab,{gifts,onAddNew:openAddGift,onEdit:openEditGift,onAdvance:advanceGift,onDelete:g=>setShowDel({type:"gift",item:g})}),
       tab==="tasks"&&h(TasksTab,{tasks,onAddNew:openAddTask,onToggle:toggleTask,onEdit:openEditTask,onDelete:t=>setShowDel({type:"task",item:t})}),
       tab==="shopping"&&h(ShopTab,{shopping,onAddNew:openAddShop,onToggle:toggleShop,onEdit:openEditShop,onDelete:s=>setShowDel({type:"shop",item:s})})),
