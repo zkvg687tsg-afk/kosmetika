@@ -18,6 +18,8 @@ input,select,textarea{font-family:inherit}
   .print-only{display:block!important}
   html,body,.app-shell{background:#fff!important}
   .print-area{padding:0!important;max-width:100%!important}
+  .print-list{display:block!important}
+  .print-list>*{margin-bottom:8px}
 }
 </style>
 </head>
@@ -235,17 +237,17 @@ function ShoppingTab({shopping,onAddNew,onEdit,onDelete,onOrder,onDeliver,onToSt
   const delivered=shopping.filter(o=>o.status==="Doručeno");
   const history=shopping.filter(o=>["Přidáno do zásob","Vráceno","Reklamace"].includes(o.status));
   const cardProps=o=>({key:o._atId||o.id,order:o,onEdit:()=>onEdit(o),onDelete:()=>onDelete(o),onOrder:()=>onOrder(o),onDeliver:()=>onDeliver(o),onToStock:()=>onToStock(o),onReturn:()=>onReturn(o),onClaim:()=>onClaim(o)});
-  return h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},
+  return h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},
     h("button",{onClick:onAddNew,style:{width:"100%",background:"#000",color:"#fff",border:"none",borderRadius:"10px",padding:"12px",fontSize:"15px",fontWeight:600}},"+ Na seznam"),
     shopping.length===0&&h("div",{style:{textAlign:"center",padding:"56px 16px",color:"#8E8E93"}},
       h("div",{style:{fontSize:"40px",marginBottom:"8px"}},"🛒"),
       h("div",{style:{fontSize:"15px"}},"Nákupní seznam je prázdný")),
-    delivered.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Doručeno – rozhodnout"}),delivered.map(o=>h(OrderCard,cardProps(o)))),
-    ordered.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Objednáno"}),ordered.map(o=>h(OrderCard,cardProps(o)))),
-    toBuy.length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Na seznamu"}),toBuy.map(o=>h(OrderCard,cardProps(o)))),
+    delivered.length>0&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Doručeno – rozhodnout"}),delivered.map(o=>h(OrderCard,cardProps(o)))),
+    ordered.length>0&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Objednáno"}),ordered.map(o=>h(OrderCard,cardProps(o)))),
+    toBuy.length>0&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},h(SecLabel,{label:"Na seznamu"}),toBuy.map(o=>h(OrderCard,cardProps(o)))),
     history.length>0&&h("div",null,
       h("button",{onClick:()=>setShowHistory(!showHistory),style:{width:"100%",background:"transparent",border:"none",color:"#8E8E93",fontSize:"13px",padding:"10px 4px",textAlign:"left",cursor:"pointer"}},(showHistory?"▾ ":"▸ ")+"Historie ("+history.length+")"),
-      showHistory&&h("div",{style:{display:"flex",flexDirection:"column",gap:"8px"}},history.map(o=>h(OrderCard,cardProps(o))))));
+      showHistory&&h("div",{className:"print-list",style:{display:"flex",flexDirection:"column",gap:"8px"}},history.map(o=>h(OrderCard,cardProps(o))))));
 }
 
 function OrderFormSheet({form,setForm,onSave,onClose,isEdit,targetStatus}){
@@ -536,7 +538,7 @@ function App(){
     h("div",{className:"print-only",style:{padding:"0 16px",marginBottom:"8px"}},
       h("div",{style:{fontSize:"20px",fontWeight:700}},"Kosmetika — "+(tabs.find(t=>t.id===tab)||{}).label),
       h("div",{style:{fontSize:"12px",color:"#8E8E93"}},new Date().toLocaleDateString("cs-CZ"))),
-    h("div",{className:"print-area",style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
+    h("div",{className:"print-area print-list",style:{padding:"12px 16px",display:"flex",flexDirection:"column",gap:"8px"}},
       tab==="shopping"?h(ShoppingTab,{shopping,onAddNew:openAddOrder,onEdit:openEditOrder,onDelete:deleteOrderItem,onOrder:o=>openOrderTransition(o,"Objednáno"),onDeliver:deliverOrder,onToStock:handleToStock,onReturn:returnOrder,onClaim:claimOrder}):
       h(React.Fragment,null,
         displayed.length===0&&h("div",{style:{textAlign:"center",padding:"64px 16px",color:"#8E8E93"}},
